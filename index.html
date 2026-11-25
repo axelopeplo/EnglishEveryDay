@@ -1,0 +1,3692 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>English Every Day — Персональный веб-тренажёр</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --bg-page: #FAF9F6;
+      --bg-subtle: #F4F2EC;
+      --bg-card: #FFFFFF;
+      --text-main: #2D2E32;
+      --text-muted: #6E717A;
+      --lavender: #EFEAFD;
+      --lavender-dark: #5B3FD9;
+      --mint: #E5F6EE;
+      --mint-dark: #1E7F53;
+      --sky: #E6F1FC;
+      --sky-dark: #236AB9;
+      --cream: #FEF6DF;
+      --cream-dark: #A56F08;
+      --peach-pink: #FDECEB;
+      --peach-pink-dark: #C84444;
+      --apricot: #FDECE0;
+      --apricot-dark: #C25E24;
+      --sage: #A8DFC0;
+      --sage-dark: #1A5736;
+      --shadow-soft: 0 6px 24px rgba(45, 46, 50, 0.05), 0 1px 3px rgba(45, 46, 50, 0.03);
+      --shadow-hover: 0 10px 28px rgba(45, 46, 50, 0.08), 0 2px 6px rgba(45, 46, 50, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      margin: 0;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: 22px;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card-interactive:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-hover);
+    }
+
+    .pill {
+      border-radius: 999px;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Flashcard 3D flip */
+    .flip-scene {
+      perspective: 1100px;
+    }
+    .flip-card {
+      position: relative;
+      width: 100%;
+      min-height: 270px;
+      transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+    .flip-card.is-flipped {
+      transform: rotateY(180deg);
+    }
+    .flip-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 28px 24px;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+    }
+    .flip-back {
+      transform: rotateY(180deg);
+    }
+
+    /* Subtle animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade {
+      animation: fadeIn 0.24s ease-out;
+    }
+
+    .tab-btn {
+      white-space: nowrap;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .tab-btn:hover {
+      background: rgba(45, 46, 50, 0.05);
+      color: var(--text-main);
+    }
+    .tab-btn.active {
+      color: var(--text-main);
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(45, 46, 50, 0.06);
+    }
+
+    /* Form controls */
+    .input-soft {
+      width: 100%;
+      background: #F7F6F2;
+      border: 1.5px solid transparent;
+      border-radius: 16px;
+      padding: 11px 15px;
+      font-size: 14px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.18s ease, background-color 0.18s ease;
+      font-family: inherit;
+    }
+    .input-soft:focus {
+      background: #FFFFFF;
+      border-color: #C7B9F6;
+    }
+
+    .btn-primary {
+      background: #2D2E32;
+      color: #FFFFFF;
+      border-radius: 999px;
+      padding: 10px 20px;
+      font-weight: 700;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      background: #1C1D20;
+    }
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-soft {
+      background: #F3F1EC;
+      color: var(--text-main);
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-weight: 600;
+      font-size: 13.5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s ease, transform 0.15s ease;
+      cursor: pointer;
+    }
+    .btn-soft:hover {
+      background: #E9E6DE;
+    }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 46, 50, 0.36);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.18s ease-out;
+    }
+    .modal-panel {
+      background: #FFFFFF;
+      border-radius: 26px;
+      width: 100%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 60px rgba(45, 46, 50, 0.18);
+      padding: 24px;
+    }
+
+    .cheatsheet-body h2 {
+      font-size: 16px;
+      font-weight: 800;
+      margin: 12px 0 6px;
+      color: #2D2E32;
+    }
+    .cheatsheet-body ul {
+      list-style: disc;
+      padding-left: 20px;
+      margin: 6px 0;
+    }
+    .cheatsheet-body li {
+      margin-bottom: 4px;
+    }
+    .cheatsheet-body p {
+      margin: 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="min-h-screen flex flex-col">
+    <!-- Top Header -->
+    <header class="sticky top-0 z-30 bg-[#FAF9F6]/90 backdrop-blur-md border-b border-black/[0.04]">
+      <div class="max-w-6xl mx-auto px-4 pt-3 pb-2">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-[#EFEAFD] flex items-center justify-center text-[#5B3FD9] font-extrabold text-lg shadow-sm">
+              Ee
+            </div>
+            <div>
+              <h1 class="text-lg sm:text-xl font-extrabold tracking-tight leading-tight text-[#2D2E32]">English Every Day</h1>
+              <p class="text-xs text-[#6E717A] font-medium">15 минут в день · персональный тренажёр</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Accent Switcher -->
+            <button id="accent-toggle-btn" class="pill px-3 py-1.5 bg-[#F3F1EC] hover:bg-[#EAE7DF] text-xs font-bold text-[#2D2E32] flex items-center gap-1.5 transition" title="Акцент озвучки (Web Speech API)">
+              <span>🔊</span>
+              <span id="accent-label">en-US</span>
+            </button>
+
+            <!-- Firebase Sync Indicator -->
+            <button id="sync-status-btn" class="pill px-3 py-1.5 bg-white shadow-sm text-xs font-semibold text-[#2D2E32] flex items-center gap-2 hover:bg-[#F7F6F2] transition" title="Настройки синхронизации Firebase и Gemini API">
+              <span id="sync-dot" class="w-2 h-2 rounded-full bg-[#A8DFC0]"></span>
+              <span id="sync-label">Локально</span>
+            </button>
+
+            <!-- Account Button -->
+            <button id="account-btn" class="pill px-3.5 py-1.5 bg-[#2D2E32] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#1E1F22] transition">
+              <span id="account-label">Войти</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Horizontal Pill Tabs -->
+        <nav id="main-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-3 pb-1" aria-label="Разделы приложения">
+        </nav>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="flex-1 max-w-6xl w-full mx-auto px-4 py-5 pb-16">
+    </main>
+  </div>
+
+  <!-- Modal Root -->
+  <div id="modal-root"></div>
+
+  <!-- Toast Container -->
+  <div id="toast-root" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // =========================================================================
+      // CONSTANTS & PALETTE
+      // =========================================================================
+      const STORAGE_KEY = 'english_every_day_state_v3';
+      const CONFIG_KEY = 'english_every_day_config_v2';
+
+      const WORD_GROUPS = ['Phrasal verbs', 'Verbs', 'Nouns', 'Adjectives', 'Adverbs'];
+
+      const TABS = [
+        { id: 'today', label: 'Today', bg: '#EAE8E1', dot: '#2D2E32' },
+        { id: 'lessons', label: 'Lessons', bg: '#FDECE0', dot: '#C25E24' },
+        { id: 'words', label: 'Words', bg: '#EFEAFD', dot: '#5B3FD9' },
+        { id: 'phrases', label: 'Collocations & Phrases', bg: '#E5F6EE', dot: '#1E7F53' },
+        { id: 'tenses', label: 'Tenses', bg: '#E6F1FC', dot: '#236AB9' },
+        { id: 'cheatsheet', label: 'Cheatsheet', bg: '#FEF6DF', dot: '#A56F08' },
+        { id: 'tests', label: 'Tests', bg: '#EFEAFD', dot: '#5B3FD9' },
+        { id: 'mistakes', label: 'Mistakes', bg: '#FDECEB', dot: '#C84444' },
+        { id: 'report', label: 'Report', bg: '#E5F6EE', dot: '#1A5736' }
+      ];
+
+      // =========================================================================
+      // DATE & UTILITY HELPERS
+      // =========================================================================
+      function getDateKey(dateObj) {
+        const d = dateObj || new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function getOffsetDateKey(daysOffset) {
+        const d = new Date();
+        d.setDate(d.getDate() + daysOffset);
+        return getDateKey(d);
+      }
+
+      function formatRuDate(dateStr) {
+        if (!dateStr) return '—';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+      }
+
+      function daysBetween(dateStrA, dateStrB) {
+        if (!dateStrA || !dateStrB) return 999;
+        const a = new Date(dateStrA + 'T00:00:00');
+        const b = new Date(dateStrB + 'T00:00:00');
+        return Math.floor((b - a) / (1000 * 60 * 60 * 24));
+      }
+
+      function uid(prefix) {
+        return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+      }
+
+      function escapeHtml(str) {
+        return String(str == null ? '' : str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function shuffle(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = a[i];
+          a[i] = a[j];
+          a[j] = tmp;
+        }
+        return a;
+      }
+
+      function renderMarkdownLite(text) {
+        const lines = String(text || '').split('\n');
+        let html = '';
+        let inList = false;
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line) {
+            if (inList) { html += '</ul>'; inList = false; }
+            continue;
+          }
+          const formatted = escapeHtml(line)
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>');
+          if (line.startsWith('## ')) {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<h2>${formatted.slice(3)}</h2>`;
+          } else if (line.startsWith('- ') || line.startsWith('• ')) {
+            if (!inList) { html += '<ul>'; inList = true; }
+            html += `<li>${formatted.slice(2)}</li>`;
+          } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<p>${formatted}</p>`;
+          }
+        }
+        if (inList) html += '</ul>';
+        return html;
+      }
+
+      function showToast(message, type) {
+        const root = document.getElementById('toast-root');
+        if (!root) return;
+        const el = document.createElement('div');
+        const bg = type === 'error' ? '#FDECEB' : type === 'success' ? '#E5F6EE' : '#2D2E32';
+        const fg = type === 'error' ? '#C84444' : type === 'success' ? '#1A5736' : '#FFFFFF';
+        el.style.background = bg;
+        el.style.color = fg;
+        el.className = 'pill px-4 py-2.5 text-sm font-bold shadow-lg animate-fade pointer-events-auto';
+        el.textContent = message;
+        root.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transition = 'opacity 0.25s ease';
+          setTimeout(() => el.remove(), 260);
+        }, 2600);
+      }
+
+      function speakText(text) {
+        if (!text) return;
+        try {
+          if (!('speechSynthesis' in window)) {
+            showToast('Озвучка не поддерживается этим браузером', 'error');
+            return;
+          }
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = state.settings.accent || 'en-US';
+          utter.rate = 0.95;
+          const voices = window.speechSynthesis.getVoices();
+          const match = voices.find(v => v.lang === utter.lang) || voices.find(v => v.lang.startsWith('en'));
+          if (match) utter.voice = match;
+          window.speechSynthesis.speak(utter);
+        } catch (e) {
+          showToast('Не удалось воспроизвести озвучку', 'error');
+        }
+      }
+
+      function copyToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+        }
+        fallbackCopy(text);
+        return Promise.resolve();
+      }
+
+      function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+      }
+
+      // =========================================================================
+      // INITIAL SEED DATA
+      // =========================================================================
+      function createInitialState() {
+        return {
+          user: {
+            signedIn: false,
+            uid: '',
+            name: 'Гость',
+            email: '',
+            provider: 'local'
+          },
+          settings: {
+            accent: 'en-US',
+            dailyGoal: 15
+          },
+          lessons: [],
+          words: [],
+          phrases: [],
+          tenses: [],
+          cheatsheets: [],
+          mistakes: [],
+          testsHistory: [],
+          stats: {
+            totalAnswers: 0,
+            correctAnswers: 0,
+            activityByDate: {}
+          }
+        };
+      }
+
+      // =========================================================================
+      // STATE & PERSISTENCE
+      // =========================================================================
+      let state = loadState();
+      let config = loadConfig();
+
+      // Transient UI state (not persisted)
+      const ui = {
+        activeTab: 'today',
+        selectedLessonId: null,
+        wordsFilter: { group: 'Все', status: 'Все', lesson: 'all', search: '' },
+        phrasesFilter: { status: 'Все', lesson: 'all', search: '' },
+        tensesFilter: { lesson: 'all' },
+        cheatsheetFilter: { lesson: 'all', tag: 'Все', search: '' },
+        // Timer for Today 15-min session
+        timerSeconds: 15 * 60,
+        timerRunning: false,
+        timerInterval: null,
+        // Active practice session
+        session: null, // { mode, sourceTab, items, index, flipped, answered, lastCorrect, score, results, direction }
+        // Test setup
+        testScope: 'all',
+        testLength: 15,
+        // Firebase sync runtime status
+        syncState: 'local', // 'local' | 'syncing' | 'synced' | 'error'
+        fbAuth: null,
+        fbDb: null,
+        // Parsed lesson upload preview
+        importPreview: null
+      };
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.words) && Array.isArray(parsed.lessons)) {
+              return parsed;
+            }
+          }
+        } catch (_) {}
+        return createInitialState();
+      }
+
+      function loadConfig() {
+        try {
+          const raw = localStorage.getItem(CONFIG_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch (_) {}
+        return { firebaseConfigText: '', geminiApiKey: '' };
+      }
+
+      function saveConfig() {
+        try {
+          localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        } catch (_) {}
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (_) {}
+        syncToFirebaseIfConnected();
+      }
+
+      // =========================================================================
+      // FIREBASE AUTH & CLOUD FIRESTORE SYNC
+      // =========================================================================
+      function parseFirebaseConfigInput(rawText) {
+        const text = String(rawText || '').trim();
+        if (!text) return null;
+        try {
+          return JSON.parse(text);
+        } catch (_) {}
+        // Allow pasting JS snippet directly from Firebase Console (const firebaseConfig = { ... };)
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) return null;
+        const jsonLike = match[0]
+          .replace(/\/\/.*$/gm, '')
+          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+          .replace(/'/g, '"')
+          .replace(/,\s*}/g, '}');
+        try {
+          return JSON.parse(jsonLike);
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function updateSyncBadge() {
+        const dot = document.getElementById('sync-dot');
+        const lbl = document.getElementById('sync-label');
+        const acc = document.getElementById('account-label');
+        if (!dot || !lbl || !acc) return;
+
+        if (ui.syncState === 'synced') {
+          dot.style.background = '#A8DFC0';
+          lbl.textContent = 'Firebase ✓';
+        } else if (ui.syncState === 'syncing') {
+          dot.style.background = '#F6C760';
+          lbl.textContent = 'Синхронизация...';
+        } else if (ui.syncState === 'ready') {
+          dot.style.background = '#93C5FD';
+          lbl.textContent = 'Firebase готов';
+        } else if (ui.syncState === 'error') {
+          dot.style.background = '#E06D6D';
+          lbl.textContent = 'Ошибка Firebase';
+        } else {
+          dot.style.background = '#D1D5DB';
+          lbl.textContent = 'Локально';
+        }
+
+        acc.textContent = state.user.signedIn ? (state.user.name || state.user.email || 'Аккаунт') : 'Войти';
+      }
+
+      let syncTimer = null;
+      async function syncToFirebaseIfConnected() {
+        if (!ui.fbDb || !ui.fbAuth || !ui.fbAuth.currentUser) return;
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(async () => {
+          try {
+            const currentUser = ui.fbAuth.currentUser;
+            if (!currentUser) return;
+            ui.syncState = 'syncing';
+            updateSyncBadge();
+            await ui.fbDb.collection('users').doc(currentUser.uid).set({
+              stateJson: JSON.stringify(state),
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+            ui.syncState = 'synced';
+            updateSyncBadge();
+          } catch (err) {
+            ui.syncState = 'error';
+            updateSyncBadge();
+          }
+        }, 350);
+      }
+
+      async function loadStateFromFirestore(user) {
+        if (!ui.fbDb || !user) return;
+        try {
+          ui.syncState = 'syncing';
+          updateSyncBadge();
+          const docRef = ui.fbDb.collection('users').doc(user.uid);
+          const snap = await docRef.get();
+          if (snap.exists && snap.data() && snap.data().stateJson) {
+            const remote = JSON.parse(snap.data().stateJson);
+            if (remote && Array.isArray(remote.words)) {
+              state = Object.assign(createInitialState(), remote);
+            }
+          } else {
+            await docRef.set({
+              stateJson: JSON.stringify(state),
+              updatedAt: new Date().toISOString()
+            });
+          }
+          state.user = {
+            signedIn: true,
+            uid: user.uid,
+            name: user.displayName || (user.email ? user.email.split('@')[0] : 'Пользователь'),
+            email: user.email || '',
+            provider: 'firebase'
+          };
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+          ui.syncState = 'synced';
+          renderMain();
+          showToast('Данные синхронизированы с Firebase', 'success');
+        } catch (err) {
+          ui.syncState = 'error';
+          updateSyncBadge();
+          showToast('Ошибка чтения Firestore: проверьте правила доступа', 'error');
+        }
+      }
+
+      function initFirebaseFromConfig(silent) {
+        const fbCfg = parseFirebaseConfigInput(config.firebaseConfigText);
+        if (!fbCfg || !fbCfg.apiKey || !fbCfg.projectId) {
+          ui.fbAuth = null;
+          ui.fbDb = null;
+          ui.syncState = 'local';
+          updateSyncBadge();
+          return false;
+        }
+        if (typeof window.firebase === 'undefined') {
+          ui.syncState = 'error';
+          updateSyncBadge();
+          if (!silent) showToast('Firebase SDK не загрузился (нет сети)', 'error');
+          return false;
+        }
+        try {
+          const appName = 'englishEveryDayApp';
+          const existing = window.firebase.apps.find(a => a.name === appName);
+          const fbApp = existing || window.firebase.initializeApp(fbCfg, appName);
+          ui.fbAuth = fbApp.auth();
+          ui.fbDb = fbApp.firestore();
+          ui.syncState = 'ready';
+          updateSyncBadge();
+
+          if (!ui.fbAuthListenerBound) {
+            ui.fbAuthListenerBound = true;
+            ui.fbAuth.onAuthStateChanged(user => {
+              if (user) {
+                loadStateFromFirestore(user);
+              } else {
+                if (state.user.provider === 'firebase') {
+                  state.user = { signedIn: false, uid: '', name: 'Гость', email: '', provider: 'local' };
+                  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+                }
+                ui.syncState = 'ready';
+                renderMain();
+              }
+            });
+          }
+          if (!silent) showToast('Firebase подключён! Теперь можно войти.', 'success');
+          return true;
+        } catch (err) {
+          ui.syncState = 'error';
+          updateSyncBadge();
+          if (!silent) showToast('Неверный формат Firebase Config', 'error');
+          return false;
+        }
+      }
+
+      // =========================================================================
+      // STATS, STREAKS & MISTAKES LOGIC
+      // =========================================================================
+      function recordAnswer(isCorrect, mistakePayload) {
+        const today = getDateKey();
+        state.stats.totalAnswers = (state.stats.totalAnswers || 0) + 1;
+        if (isCorrect) state.stats.correctAnswers = (state.stats.correctAnswers || 0) + 1;
+
+        if (!state.stats.activityByDate) state.stats.activityByDate = {};
+        if (!state.stats.activityByDate[today]) {
+          state.stats.activityByDate[today] = { tasks: 0, completed: false };
+        }
+        state.stats.activityByDate[today].tasks += 1;
+        if (state.stats.activityByDate[today].tasks >= (state.settings.dailyGoal || 15)) {
+          state.stats.activityByDate[today].completed = true;
+        }
+
+        if (!isCorrect && mistakePayload) {
+          addOrResetMistake(mistakePayload);
+        }
+        saveState();
+      }
+
+      function markTodayCompleted() {
+        const today = getDateKey();
+        if (!state.stats.activityByDate[today]) {
+          state.stats.activityByDate[today] = { tasks: state.settings.dailyGoal || 15, completed: true };
+        } else {
+          state.stats.activityByDate[today].completed = true;
+        }
+        saveState();
+      }
+
+      function addOrResetMistake(payload) {
+        const existing = state.mistakes.find(m =>
+          m.section === payload.section &&
+          m.itemId === payload.itemId &&
+          (payload.exerciseId ? m.exerciseId === payload.exerciseId : true)
+        );
+        if (existing) {
+          existing.streak = 0;
+          existing.addedAt = getDateKey();
+        } else {
+          state.mistakes.push({
+            id: uid('m'),
+            section: payload.section,
+            itemId: payload.itemId,
+            exerciseId: payload.exerciseId || null,
+            prompt: payload.prompt,
+            expected: payload.expected,
+            hint: payload.hint || '',
+            streak: 0,
+            addedAt: getDateKey()
+          });
+        }
+      }
+
+      function handleMistakePracticeResult(mistakeId, isCorrect) {
+        const idx = state.mistakes.findIndex(m => m.id === mistakeId);
+        if (idx === -1) return { removed: false };
+        recordAnswer(isCorrect, null);
+        if (isCorrect) {
+          state.mistakes[idx].streak = (state.mistakes[idx].streak || 0) + 1;
+          if (state.mistakes[idx].streak >= 2) {
+            state.mistakes.splice(idx, 1);
+            saveState();
+            return { removed: true };
+          }
+        } else {
+          state.mistakes[idx].streak = 0;
+        }
+        saveState();
+        return { removed: false };
+      }
+
+      function computeStreakAndDays() {
+        const map = state.stats.activityByDate || {};
+        const completedDates = Object.keys(map).filter(k => map[k] && map[k].completed);
+        const totalDays = completedDates.length;
+
+        let streak = 0;
+        const todayKey = getDateKey();
+        const startOffset = (map[todayKey] && map[todayKey].completed) ? 0 : -1;
+        for (let i = startOffset; i >= -365; i--) {
+          const k = getOffsetDateKey(i);
+          if (map[k] && map[k].completed) {
+            streak += 1;
+          } else {
+            break;
+          }
+        }
+        return { totalDays, streak };
+      }
+
+      function getLessonStats(lessonId) {
+        const words = state.words.filter(w => (w.lessonIds || []).includes(lessonId));
+        const phrases = state.phrases.filter(p => (p.lessonIds || []).includes(lessonId));
+        const tenses = state.tenses.filter(t => (t.lessonIds || []).includes(lessonId));
+        const sheets = state.cheatsheets.filter(c => (c.lessonIds || []).includes(lessonId));
+
+        const totalTrackable = words.length + phrases.length + tenses.length;
+        const knownTrackable =
+          words.filter(w => w.status === 'Знаю').length +
+          phrases.filter(p => p.status === 'Знаю').length +
+          tenses.filter(t => t.status === 'Знаю').length;
+
+        const percent = totalTrackable > 0 ? Math.round((knownTrackable / totalTrackable) * 100) : 0;
+        return { words, phrases, tenses, sheets, totalTrackable, knownTrackable, percent };
+      }
+
+      function getLessonBadgesHtml(lessonIds) {
+        const ids = lessonIds || [];
+        if (!ids.length) {
+          return `<span class="pill px-2.5 py-0.5 text-[11px] font-semibold bg-[#F3F1EC] text-[#6E717A]">Без урока</span>`;
+        }
+        return ids.map(id => {
+          const l = state.lessons.find(x => x.id === id);
+          if (!l) return '';
+          const shortName = l.title.length > 26 ? l.title.slice(0, 25) + '…' : l.title;
+          return `<button type="button" onclick="App.openLessonDetail('${escapeHtml(id)}')" class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#FDECE0] text-[#C25E24] hover:brightness-95 transition">${escapeHtml(shortName)}</button>`;
+        }).join(' ');
+      }
+
+      function getStatusBadgeHtml(status) {
+        if (status === 'Знаю') {
+          return `<span class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#A8DFC0] text-[#1A5736]">Знаю</span>`;
+        }
+        if (status === 'Изучаю') {
+          return `<span class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#EFEAFD] text-[#5B3FD9]">Изучаю</span>`;
+        }
+        return `<span class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#F3F1EC] text-[#6E717A]">Новое</span>`;
+      }
+
+      // =========================================================================
+      // NAVIGATION & TOP RENDER
+      // =========================================================================
+      function renderTabs() {
+        const nav = document.getElementById('main-tabs');
+        if (!nav) return;
+        nav.innerHTML = TABS.map(tab => {
+          const isActive = ui.activeTab === tab.id;
+          const badge = tab.id === 'mistakes' && state.mistakes.length > 0
+            ? `<span class="pill px-1.5 py-0.2 text-[11px] font-extrabold bg-[#C84444] text-white">${state.mistakes.length}</span>`
+            : '';
+          return `
+            <button
+              type="button"
+              class="tab-btn ${isActive ? 'active' : ''}"
+              style="${isActive ? `background:${tab.bg};` : ''}"
+              onclick="App.switchTab('${tab.id}')"
+            >
+              <span class="w-2 h-2 rounded-full" style="background:${tab.dot}"></span>
+              <span>${tab.label}</span>
+              ${badge}
+            </button>
+          `;
+        }).join('');
+      }
+
+      function renderMain() {
+        renderTabs();
+        updateSyncBadge();
+        const accentLbl = document.getElementById('accent-label');
+        if (accentLbl) accentLbl.textContent = state.settings.accent || 'en-US';
+
+        const container = document.getElementById('main-content');
+        if (!container) return;
+
+        // If an interactive practice/test session is running for current tab, render it
+        if (ui.session && ui.session.sourceTab === ui.activeTab) {
+          container.innerHTML = renderSessionView();
+          return;
+        }
+
+        switch (ui.activeTab) {
+          case 'today': container.innerHTML = renderTodayView(); break;
+          case 'lessons': container.innerHTML = ui.selectedLessonId ? renderLessonDetailView(ui.selectedLessonId) : renderLessonsView(); break;
+          case 'words': container.innerHTML = renderWordsView(); break;
+          case 'phrases': container.innerHTML = renderPhrasesView(); break;
+          case 'tenses': container.innerHTML = renderTensesView(); break;
+          case 'cheatsheet': container.innerHTML = renderCheatsheetView(); break;
+          case 'tests': container.innerHTML = renderTestsView(); break;
+          case 'mistakes': container.innerHTML = renderMistakesView(); break;
+          case 'report': container.innerHTML = renderReportView(); break;
+          default: container.innerHTML = renderTodayView();
+        }
+      }
+
+      // =========================================================================
+      // VIEW 1: TODAY
+      // =========================================================================
+      function buildTodayPlan() {
+        const learningWords = state.words.filter(w => w.status === 'Изучаю');
+        const newWords = state.words.filter(w => w.status === 'Новое');
+        const todayWords = learningWords.concat(newWords).slice(0, 10);
+
+        const learningPhrases = state.phrases.filter(p => p.status !== 'Знаю');
+        const todayPhrases = (learningPhrases.length ? learningPhrases : state.phrases).slice(0, 5);
+
+        const tenseExercises = [];
+        const priorityTenses = state.tenses.slice().sort((a, b) => (a.status === 'Изучаю' ? -1 : 1));
+        for (const t of priorityTenses) {
+          for (const ex of (t.exercises || [])) {
+            tenseExercises.push({ tense: t, exercise: ex });
+          }
+        }
+        const todayTenses = tenseExercises.slice(0, 5);
+        const todayMistakes = state.mistakes.slice(0, 5);
+
+        return { todayWords, todayPhrases, todayTenses, todayMistakes };
+      }
+
+      function renderTodayView() {
+        const todayKey = getDateKey();
+        const todayAct = (state.stats.activityByDate && state.stats.activityByDate[todayKey]) || { tasks: 0, completed: false };
+        const goal = state.settings.dailyGoal || 15;
+        const progressPct = Math.min(100, Math.round((todayAct.tasks / goal) * 100));
+        const { streak } = computeStreakAndDays();
+        const plan = buildTodayPlan();
+
+        // Check test reminder (>= 2 days since last test)
+        const lastTest = state.testsHistory && state.testsHistory[0];
+        const daysSinceTest = lastTest ? daysBetween(lastTest.date, todayKey) : 99;
+        const showTestReminder = daysSinceTest >= 2;
+
+        const mins = String(Math.floor(ui.timerSeconds / 60)).padStart(2, '0');
+        const secs = String(ui.timerSeconds % 60).padStart(2, '0');
+
+        return `
+          <div class="space-y-5 animate-fade">
+            ${showTestReminder ? `
+              <div class="card p-4 sm:p-5 bg-[#EFEAFD] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-white/80 flex items-center justify-center text-lg shrink-0">📝</div>
+                  <div>
+                    <div class="font-extrabold text-[#2D2E32] text-sm sm:text-base">Пора пройти контрольный тест!</div>
+                    <p class="text-xs sm:text-sm text-[#55506A] mt-0.5">
+                      ${lastTest ? `С последнего теста (${formatRuDate(lastTest.date)}) прошло ${daysSinceTest} дн. Рекомендуем проверяться раз в 2 дня.` : 'Вы ещё не проходили контрольный тест. Рекомендуем проверять знания раз в 2 дня.'}
+                    </p>
+                  </div>
+                </div>
+                <button type="button" onclick="App.switchTab('tests')" class="btn-primary shrink-0">Перейти к тесту</button>
+              </div>
+            ` : ''}
+
+            <!-- Hero Daily Card -->
+            <div class="card p-5 sm:p-7">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div class="space-y-2 flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="pill px-3 py-1 text-xs font-bold ${todayAct.completed ? 'bg-[#A8DFC0] text-[#1A5736]' : 'bg-[#F3F1EC] text-[#6E717A]'}">
+                      ${todayAct.completed ? '✓ День засчитан!' : 'План на сегодня · 15 минут'}
+                    </span>
+                    <span class="pill px-3 py-1 text-xs font-bold bg-[#FEF6DF] text-[#A56F08]">
+                      🔥 Серия: ${streak} дн.
+                    </span>
+                  </div>
+                  <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Ежедневное занятие</h2>
+                  <p class="text-sm text-[#6E717A]">
+                    Выполните блок Today или минимум ${goal} заданий, чтобы засчитать день и продлить серию.
+                  </p>
+                </div>
+
+                <!-- 15-min Timer -->
+                <div class="bg-[#FAF9F6] rounded-[22px] p-4 flex items-center gap-4 shrink-0">
+                  <div>
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-[#6E717A]">Таймер сессии</div>
+                    <div id="today-timer-display" class="text-2xl font-extrabold tabular-nums">${mins}:${secs}</div>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="App.toggleTimer()" class="btn-primary !py-2 !px-4 text-xs">
+                      ${ui.timerRunning ? 'Пауза' : 'Старт'}
+                    </button>
+                    <button type="button" onclick="App.resetTimer()" class="btn-soft !py-2 !px-3 text-xs" title="Сбросить таймер">↺</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Daily Progress Bar -->
+              <div class="mt-6">
+                <div class="flex items-center justify-between text-xs font-bold mb-2">
+                  <span class="text-[#6E717A]">Дневная норма</span>
+                  <span>${todayAct.tasks} / ${goal} заданий (${progressPct}%)</span>
+                </div>
+                <div class="w-full h-3 bg-[#F2F0EA] rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-300" style="width:${progressPct}%; background:${todayAct.completed ? '#A8DFC0' : '#5B3FD9'};"></div>
+                </div>
+              </div>
+
+              <div class="mt-6 flex flex-wrap items-center gap-3">
+                <button type="button" onclick="App.startTodaySession()" class="btn-primary !px-6 !py-3 text-sm">
+                  ▶ Начать занятие (${plan.todayWords.length + plan.todayPhrases.length + plan.todayTenses.length + plan.todayMistakes.length} заданий)
+                </button>
+                <button type="button" onclick="App.switchTab('lessons')" class="btn-soft !py-3 !px-5">
+                  📚 Уроки (${state.lessons.length})
+                </button>
+              </div>
+            </div>
+
+            <!-- 4 Blocks Breakdown -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="card card-interactive p-5 bg-[#EFEAFD]/70 cursor-pointer" onclick="App.startTodayBlock('words')">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="pill px-2.5 py-1 text-xs font-bold bg-white text-[#5B3FD9]">Words</span>
+                  <span class="text-xl font-extrabold text-[#5B3FD9]">${plan.todayWords.length}</span>
+                </div>
+                <div class="font-bold text-sm">Слова «Изучаю»</div>
+                <p class="text-xs text-[#6E717A] mt-1">Квиз и повторение активной лексики</p>
+              </div>
+
+              <div class="card card-interactive p-5 bg-[#E5F6EE]/80 cursor-pointer" onclick="App.startTodayBlock('phrases')">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="pill px-2.5 py-1 text-xs font-bold bg-white text-[#1E7F53]">Phrases</span>
+                  <span class="text-xl font-extrabold text-[#1E7F53]">${plan.todayPhrases.length}</span>
+                </div>
+                <div class="font-bold text-sm">Фразы и коллокации</div>
+                <p class="text-xs text-[#6E717A] mt-1">Заполнение пропусков в контексте</p>
+              </div>
+
+              <div class="card card-interactive p-5 bg-[#E6F1FC]/85 cursor-pointer" onclick="App.startTodayBlock('tenses')">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="pill px-2.5 py-1 text-xs font-bold bg-white text-[#236AB9]">Tenses</span>
+                  <span class="text-xl font-extrabold text-[#236AB9]">${plan.todayTenses.length}</span>
+                </div>
+                <div class="font-bold text-sm">Практика времён</div>
+                <p class="text-xs text-[#6E717A] mt-1">Раскрытие скобок с правилами</p>
+              </div>
+
+              <div class="card card-interactive p-5 bg-[#FDECEB]/85 cursor-pointer" onclick="App.startTodayBlock('mistakes')">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="pill px-2.5 py-1 text-xs font-bold bg-white text-[#C84444]">Mistakes</span>
+                  <span class="text-xl font-extrabold text-[#C84444]">${plan.todayMistakes.length}</span>
+                </div>
+                <div class="font-bold text-sm">Работа над ошибками</div>
+                <p class="text-xs text-[#6E717A] mt-1">${plan.todayMistakes.length ? '2 верных ответа уберут карточку' : 'Ошибок нет — отличная работа!'}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 2: LESSONS (Apricot-Peach Tab + File Upload + Gemini Parser)
+      // =========================================================================
+      function renderLessonsView() {
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="card p-5 sm:p-6 bg-[#FDECE0]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#C25E24]">Lessons</span>
+                <h2 class="text-2xl font-extrabold mt-2">Мои уроки и конспекты</h2>
+                <p class="text-sm text-[#6E717A] mt-1">Привязывайте материалы к урокам или загружайте файлы конспектов (.pdf, .docx, .txt, .md, фото) для авторазбора.</p>
+              </div>
+              <div class="flex flex-wrap gap-2 shrink-0">
+                <button type="button" onclick="App.openLessonUploadModal()" class="btn-primary !bg-[#C25E24] hover:!bg-[#A64E1B]">
+                  📄 Загрузить файл урока
+                </button>
+                <button type="button" onclick="App.openLessonModal()" class="btn-soft !bg-white">
+                  + Новый урок
+                </button>
+              </div>
+            </div>
+
+            ${state.lessons.length === 0 ? `
+              <div class="card p-10 text-center text-[#6E717A]">
+                Уроков пока нет. Создайте первый урок или загрузите файл конспекта.
+              </div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${state.lessons.map(lesson => {
+                  const st = getLessonStats(lesson.id);
+                  return `
+                    <div class="card card-interactive p-5 flex flex-col justify-between gap-4">
+                      <div>
+                        <div class="flex items-start justify-between gap-2">
+                          <button type="button" onclick="App.openLessonDetail('${lesson.id}')" class="text-left group">
+                            <h3 class="text-lg font-extrabold group-hover:text-[#C25E24] transition">${escapeHtml(lesson.title)}</h3>
+                          </button>
+                          <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" onclick="App.openLessonModal('${lesson.id}')" class="btn-soft !p-2 text-xs" title="Редактировать">✏️</button>
+                            <button type="button" onclick="App.deleteLesson('${lesson.id}')" class="btn-soft !p-2 text-xs" title="Удалить">🗑️</button>
+                          </div>
+                        </div>
+                        <p class="text-sm text-[#6E717A] mt-1.5">${escapeHtml(lesson.description || 'Без описания')}</p>
+
+                        <div class="flex flex-wrap gap-1.5 mt-3">
+                          <span class="pill px-2.5 py-1 text-xs font-bold bg-[#EFEAFD] text-[#5B3FD9]">Words: ${st.words.length}</span>
+                          <span class="pill px-2.5 py-1 text-xs font-bold bg-[#E5F6EE] text-[#1E7F53]">Phrases: ${st.phrases.length}</span>
+                          <span class="pill px-2.5 py-1 text-xs font-bold bg-[#E6F1FC] text-[#236AB9]">Tenses: ${st.tenses.length}</span>
+                          <span class="pill px-2.5 py-1 text-xs font-bold bg-[#FEF6DF] text-[#A56F08]">Cheatsheet: ${st.sheets.length}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div class="flex items-center justify-between text-xs font-bold mb-1.5">
+                          <span class="text-[#6E717A]">Прогресс усвоения</span>
+                          <span>${st.percent}% (${st.knownTrackable}/${st.totalTrackable})</span>
+                        </div>
+                        <div class="w-full h-2.5 bg-[#F2F0EA] rounded-full overflow-hidden">
+                          <div class="h-full rounded-full transition-all" style="width:${st.percent}%; background:${st.percent === 100 ? '#A8DFC0' : '#E08B52'};"></div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2 mt-4">
+                          <button type="button" onclick="App.openLessonDetail('${lesson.id}')" class="btn-primary !py-2 !px-4 text-xs">Открыть урок</button>
+                          <button type="button" onclick="App.startLessonPractice('${lesson.id}', 'mix')" class="btn-soft !py-2 !px-3.5 text-xs">⚡ Микс-квиз</button>
+                          <button type="button" onclick="App.startLessonPractice('${lesson.id}', 'flashcards')" class="btn-soft !py-2 !px-3.5 text-xs">🃏 Карточки</button>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      function renderLessonDetailView(lessonId) {
+        const lesson = state.lessons.find(l => l.id === lessonId);
+        if (!lesson) {
+          ui.selectedLessonId = null;
+          return renderLessonsView();
+        }
+        const st = getLessonStats(lessonId);
+
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="App.closeLessonDetail()" class="btn-soft">← Все уроки</button>
+            </div>
+
+            <div class="card p-5 sm:p-6 bg-[#FDECE0]/60">
+              <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div>
+                  <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#C25E24]">Детали урока</span>
+                  <h2 class="text-2xl font-extrabold mt-2">${escapeHtml(lesson.title)}</h2>
+                  <p class="text-sm text-[#6E717A] mt-1">${escapeHtml(lesson.description || '')}</p>
+                </div>
+                <div class="flex flex-wrap gap-2 shrink-0">
+                  <button type="button" onclick="App.openAttachMaterialsModal('${lesson.id}')" class="btn-primary !bg-[#C25E24] hover:!bg-[#A64E1B]">🔗 Привязать материалы</button>
+                  <button type="button" onclick="App.openLessonUploadModal('${lesson.id}')" class="btn-soft !bg-white">📄 Загрузить файл</button>
+                </div>
+              </div>
+
+              <div class="mt-5">
+                <div class="flex items-center justify-between text-xs font-bold mb-1.5">
+                  <span class="text-[#6E717A]">Усвоено материалов урока</span>
+                  <span>${st.percent}% (${st.knownTrackable}/${st.totalTrackable})</span>
+                </div>
+                <div class="w-full h-3 bg-white/80 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full" style="width:${st.percent}%; background:${st.percent === 100 ? '#A8DFC0' : '#E08B52'};"></div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2.5 mt-5">
+                <button type="button" onclick="App.startLessonPractice('${lesson.id}', 'mix')" class="btn-primary">⚡ Тренировка: Микс-квиз</button>
+                <button type="button" onclick="App.startLessonPractice('${lesson.id}', 'flashcards')" class="btn-soft !bg-white">🃏 Тренировка: Флеш-карточки</button>
+                <button type="button" onclick="App.launchTestForLesson('${lesson.id}')" class="btn-soft !bg-white">📝 Контрольный тест по уроку</button>
+              </div>
+            </div>
+
+            <!-- Linked Words -->
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-extrabold text-base flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-[#5B3FD9]"></span> Words (${st.words.length})
+                </h3>
+              </div>
+              ${st.words.length === 0 ? `<p class="text-sm text-[#6E717A]">Нет привязанных слов.</p>` : `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  ${st.words.map(w => `
+                    <div class="p-3.5 rounded-2xl bg-[#FAF9F6] flex items-center justify-between gap-2">
+                      <div>
+                        <div class="font-bold text-sm flex items-center gap-2">
+                          <span>${escapeHtml(w.word)}</span>
+                          <button type="button" onclick="App.speak('${escapeHtml(w.word)}')" class="text-xs hover:scale-110 transition">🔊</button>
+                        </div>
+                        <div class="text-xs text-[#6E717A]">${escapeHtml(w.translation)} · ${escapeHtml(w.group)}</div>
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        ${getStatusBadgeHtml(w.status)}
+                        <button type="button" onclick="App.detachMaterial('${lesson.id}', 'words', '${w.id}')" class="text-xs text-[#6E717A] hover:text-[#C84444] px-1" title="Отвязать от урока">✕</button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+
+            <!-- Linked Phrases -->
+            <div class="card p-5">
+              <h3 class="font-extrabold text-base flex items-center gap-2 mb-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#1E7F53]"></span> Collocations & Phrases (${st.phrases.length})
+              </h3>
+              ${st.phrases.length === 0 ? `<p class="text-sm text-[#6E717A]">Нет привязанных фраз.</p>` : `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  ${st.phrases.map(p => `
+                    <div class="p-3.5 rounded-2xl bg-[#FAF9F6] flex items-center justify-between gap-2">
+                      <div>
+                        <div class="font-bold text-sm flex items-center gap-2">
+                          <span>${escapeHtml(p.phrase)}</span>
+                          <button type="button" onclick="App.speak('${escapeHtml(p.phrase)}')" class="text-xs">🔊</button>
+                        </div>
+                        <div class="text-xs text-[#6E717A]">${escapeHtml(p.translation)}</div>
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        ${getStatusBadgeHtml(p.status)}
+                        <button type="button" onclick="App.detachMaterial('${lesson.id}', 'phrases', '${p.id}')" class="text-xs text-[#6E717A] hover:text-[#C84444] px-1" title="Отвязать">✕</button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+
+            <!-- Linked Tenses & Cheatsheet -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="card p-5">
+                <h3 class="font-extrabold text-base flex items-center gap-2 mb-3">
+                  <span class="w-2.5 h-2.5 rounded-full bg-[#236AB9]"></span> Tenses (${st.tenses.length})
+                </h3>
+                ${st.tenses.length === 0 ? `<p class="text-sm text-[#6E717A]">Нет привязанных времён.</p>` : `
+                  <div class="space-y-2">
+                    ${st.tenses.map(t => `
+                      <div class="p-3 rounded-2xl bg-[#FAF9F6] flex items-center justify-between gap-2">
+                        <span class="font-bold text-sm">${escapeHtml(t.name)}</span>
+                        <div class="flex items-center gap-1.5">
+                          ${getStatusBadgeHtml(t.status)}
+                          <button type="button" onclick="App.detachMaterial('${lesson.id}', 'tenses', '${t.id}')" class="text-xs text-[#6E717A] hover:text-[#C84444] px-1">✕</button>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </div>
+
+              <div class="card p-5">
+                <h3 class="font-extrabold text-base flex items-center gap-2 mb-3">
+                  <span class="w-2.5 h-2.5 rounded-full bg-[#A56F08]"></span> Cheatsheet (${st.sheets.length})
+                </h3>
+                ${st.sheets.length === 0 ? `<p class="text-sm text-[#6E717A]">Нет привязанных шпаргалок.</p>` : `
+                  <div class="space-y-2">
+                    ${st.sheets.map(c => `
+                      <div class="p-3 rounded-2xl bg-[#FAF9F6] flex items-center justify-between gap-2">
+                        <span class="font-bold text-sm">${escapeHtml(c.title)}</span>
+                        <button type="button" onclick="App.detachMaterial('${lesson.id}', 'cheatsheets', '${c.id}')" class="text-xs text-[#6E717A] hover:text-[#C84444] px-1">✕</button>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 3: WORDS (Lavender #EFEAFD)
+      // =========================================================================
+      function getFilteredWords() {
+        const f = ui.wordsFilter;
+        return state.words.filter(w => {
+          if (f.group !== 'Все' && w.group !== f.group) return false;
+          if (f.status !== 'Все' && w.status !== f.status) return false;
+          if (f.lesson === 'none') {
+            if (w.lessonIds && w.lessonIds.length > 0) return false;
+          } else if (f.lesson !== 'all') {
+            if (!(w.lessonIds || []).includes(f.lesson)) return false;
+          }
+          if (f.search) {
+            const q = f.search.toLowerCase();
+            if (!w.word.toLowerCase().includes(q) && !w.translation.toLowerCase().includes(q)) return false;
+          }
+          return true;
+        });
+      }
+
+      function renderWordsView() {
+        const list = getFilteredWords();
+        const f = ui.wordsFilter;
+
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="card p-5 sm:p-6 bg-[#EFEAFD]/75 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#5B3FD9]">Words · ${state.words.length}</span>
+                <h2 class="text-2xl font-extrabold mt-2">Словарь и лексика</h2>
+                <p class="text-sm text-[#6E717A] mt-1">Добавляйте слова вручную или из уроков, фильтруйте по группам и тренируйтесь.</p>
+              </div>
+              <div class="flex flex-wrap gap-2 shrink-0">
+                <button type="button" onclick="App.openWordModal()" class="btn-primary !bg-[#5B3FD9] hover:!bg-[#4A30BE]">+ Добавить</button>
+                <button type="button" onclick="App.openBulkImportModal('words')" class="btn-soft !bg-white">📥 Массовый импорт</button>
+              </div>
+            </div>
+
+            <!-- Training Modes Bar -->
+            <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
+              <div class="text-sm font-bold text-[#2D2E32]">
+                Тренировка по отфильтрованным словам (${list.length}):
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="App.startWordsPractice('flashcards')" class="btn-soft !bg-[#EFEAFD] text-[#5B3FD9]">🃏 Флеш-карточки</button>
+                <button type="button" onclick="App.startWordsPractice('quiz-en-ru')" class="btn-soft">🎯 Квиз EN → RU</button>
+                <button type="button" onclick="App.startWordsPractice('quiz-ru-en')" class="btn-soft">🎯 Квиз RU → EN</button>
+              </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card p-4 space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input type="text" class="input-soft" placeholder="Поиск слова или перевода..." value="${escapeHtml(f.search)}" oninput="App.setWordFilter('search', this.value)" />
+                <select class="input-soft" onchange="App.setWordFilter('lesson', this.value)">
+                  <option value="all" ${f.lesson === 'all' ? 'selected' : ''}>Все уроки и ручные</option>
+                  <option value="none" ${f.lesson === 'none' ? 'selected' : ''}>Без урока (ручные)</option>
+                  ${state.lessons.map(l => `<option value="${l.id}" ${f.lesson === l.id ? 'selected' : ''}>${escapeHtml(l.title)}</option>`).join('')}
+                </select>
+                <select class="input-soft" onchange="App.setWordFilter('status', this.value)">
+                  <option value="Все" ${f.status === 'Все' ? 'selected' : ''}>Все статусы</option>
+                  <option value="Новое" ${f.status === 'Новое' ? 'selected' : ''}>Новое</option>
+                  <option value="Изучаю" ${f.status === 'Изучаю' ? 'selected' : ''}>Изучаю</option>
+                  <option value="Знаю" ${f.status === 'Знаю' ? 'selected' : ''}>Знаю</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+                ${['Все'].concat(WORD_GROUPS).map(g => `
+                  <button type="button" onclick="App.setWordFilter('group', '${g}')" class="pill px-3.5 py-1.5 text-xs font-bold shrink-0 transition ${f.group === g ? 'bg-[#5B3FD9] text-white' : 'bg-[#F3F1EC] text-[#6E717A] hover:text-[#2D2E32]'}">
+                    ${g}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Word Cards -->
+            ${list.length === 0 ? `
+              <div class="card p-10 text-center text-[#6E717A]">По выбранным фильтрам слов не найдено.</div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${list.map(w => `
+                  <div class="card p-5 flex flex-col justify-between gap-3">
+                    <div>
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <h3 class="text-lg font-extrabold">${escapeHtml(w.word)}</h3>
+                          <button type="button" onclick="App.speak('${escapeHtml(w.word)}')" class="w-8 h-8 rounded-full bg-[#EFEAFD] text-[#5B3FD9] flex items-center justify-center text-sm hover:scale-105 transition" title="Озвучить">🔊</button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <button type="button" onclick="App.openWordModal('${w.id}')" class="btn-soft !p-1.5 text-xs" title="Редактировать">✏️</button>
+                          <button type="button" onclick="App.deleteWord('${w.id}')" class="btn-soft !p-1.5 text-xs" title="Удалить">🗑️</button>
+                        </div>
+                      </div>
+                      <div class="text-base font-semibold text-[#5B3FD9] mt-1">${escapeHtml(w.translation)}</div>
+                      ${w.example ? `<p class="text-xs sm:text-sm text-[#6E717A] italic mt-2">“${escapeHtml(w.example)}”</p>` : ''}
+                    </div>
+                    <div class="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-black/[0.04]">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#F3F1EC] text-[#2D2E32]">${escapeHtml(w.group)}</span>
+                        ${getLessonBadgesHtml(w.lessonIds)}
+                      </div>
+                      <button type="button" onclick="App.cycleWordStatus('${w.id}')" title="Нажмите, чтобы переключить статус">
+                        ${getStatusBadgeHtml(w.status)}
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 4: COLLOCATIONS & PHRASES (Mint #E5F6EE)
+      // =========================================================================
+      function getFilteredPhrases() {
+        const f = ui.phrasesFilter;
+        return state.phrases.filter(p => {
+          if (f.status !== 'Все' && p.status !== f.status) return false;
+          if (f.lesson === 'none') {
+            if (p.lessonIds && p.lessonIds.length > 0) return false;
+          } else if (f.lesson !== 'all') {
+            if (!(p.lessonIds || []).includes(f.lesson)) return false;
+          }
+          if (f.search) {
+            const q = f.search.toLowerCase();
+            if (!p.phrase.toLowerCase().includes(q) && !p.translation.toLowerCase().includes(q)) return false;
+          }
+          return true;
+        });
+      }
+
+      function renderPhrasesView() {
+        const list = getFilteredPhrases();
+        const f = ui.phrasesFilter;
+
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="card p-5 sm:p-6 bg-[#E5F6EE]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#1E7F53]">Collocations & Phrases · ${state.phrases.length}</span>
+                <h2 class="text-2xl font-extrabold mt-2">Устойчивые выражения и фразы</h2>
+                <p class="text-sm text-[#6E717A] mt-1">Запоминайте естественные связки слов через флеш-карточки и заполнение пропусков.</p>
+              </div>
+              <div class="flex flex-wrap gap-2 shrink-0">
+                <button type="button" onclick="App.openPhraseModal()" class="btn-primary !bg-[#1E7F53] hover:!bg-[#166641]">+ Добавить</button>
+                <button type="button" onclick="App.openBulkImportModal('phrases')" class="btn-soft !bg-white">📥 Массовый импорт</button>
+              </div>
+            </div>
+
+            <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
+              <div class="text-sm font-bold">Тренировка по выбранным фразам (${list.length}):</div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="App.startPhrasesPractice('flashcards')" class="btn-soft !bg-[#E5F6EE] text-[#1E7F53]">🃏 Флеш-карточки</button>
+                <button type="button" onclick="App.startPhrasesPractice('fill-blank')" class="btn-soft">✍️ Заполни пропуск</button>
+              </div>
+            </div>
+
+            <div class="card p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input type="text" class="input-soft" placeholder="Поиск фразы или перевода..." value="${escapeHtml(f.search)}" oninput="App.setPhraseFilter('search', this.value)" />
+              <select class="input-soft" onchange="App.setPhraseFilter('lesson', this.value)">
+                <option value="all" ${f.lesson === 'all' ? 'selected' : ''}>Все уроки</option>
+                <option value="none" ${f.lesson === 'none' ? 'selected' : ''}>Без урока</option>
+                ${state.lessons.map(l => `<option value="${l.id}" ${f.lesson === l.id ? 'selected' : ''}>${escapeHtml(l.title)}</option>`).join('')}
+              </select>
+              <select class="input-soft" onchange="App.setPhraseFilter('status', this.value)">
+                <option value="Все" ${f.status === 'Все' ? 'selected' : ''}>Все статусы</option>
+                <option value="Изучаю" ${f.status === 'Изучаю' ? 'selected' : ''}>Изучаю</option>
+                <option value="Знаю" ${f.status === 'Знаю' ? 'selected' : ''}>Знаю</option>
+              </select>
+            </div>
+
+            ${list.length === 0 ? `
+              <div class="card p-10 text-center text-[#6E717A]">Фраз по этим фильтрам не найдено.</div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${list.map(p => `
+                  <div class="card p-5 flex flex-col justify-between gap-3">
+                    <div>
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                          <h3 class="text-lg font-extrabold">${escapeHtml(p.phrase)}</h3>
+                          <button type="button" onclick="App.speak('${escapeHtml(p.phrase)}')" class="w-8 h-8 rounded-full bg-[#E5F6EE] text-[#1E7F53] flex items-center justify-center text-sm">🔊</button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <button type="button" onclick="App.openPhraseModal('${p.id}')" class="btn-soft !p-1.5 text-xs">✏️</button>
+                          <button type="button" onclick="App.deletePhrase('${p.id}')" class="btn-soft !p-1.5 text-xs">🗑️</button>
+                        </div>
+                      </div>
+                      <div class="text-base font-semibold text-[#1E7F53] mt-1">${escapeHtml(p.translation)}</div>
+                      ${p.example ? `<p class="text-xs sm:text-sm text-[#6E717A] italic mt-2">“${escapeHtml(p.example)}”</p>` : ''}
+                    </div>
+                    <div class="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-black/[0.04]">
+                      <div class="flex items-center gap-1.5 flex-wrap">${getLessonBadgesHtml(p.lessonIds)}</div>
+                      <button type="button" onclick="App.togglePhraseStatus('${p.id}')">${getStatusBadgeHtml(p.status)}</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 5: TENSES (Sky #E6F1FC)
+      // =========================================================================
+      function renderTensesView() {
+        const f = ui.tensesFilter;
+        const list = state.tenses.filter(t => {
+          if (f.lesson === 'none') return !(t.lessonIds && t.lessonIds.length);
+          if (f.lesson !== 'all') return (t.lessonIds || []).includes(f.lesson);
+          return true;
+        });
+
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="card p-5 sm:p-6 bg-[#E6F1FC]/85 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#236AB9]">Tenses · ${state.tenses.length}</span>
+                <h2 class="text-2xl font-extrabold mt-2">Времена английского языка</h2>
+                <p class="text-sm text-[#6E717A] mt-1">Формулы (+, −, ?), слова-маркеры и тренажёр на раскрытие скобок с мгновенной подсказкой правила.</p>
+              </div>
+              <div class="flex flex-wrap gap-2 shrink-0">
+                <button type="button" onclick="App.openTenseModal()" class="btn-primary !bg-[#236AB9] hover:!bg-[#1B579B]">+ Добавить</button>
+                <button type="button" onclick="App.startTensesPractice(null, 'input')" class="btn-soft !bg-white">✍️ Тренажёр (ввод)</button>
+                <button type="button" onclick="App.startTensesPractice(null, 'choice')" class="btn-soft !bg-white">🎯 Тренажёр (выбор)</button>
+              </div>
+            </div>
+
+            <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
+              <div class="text-sm font-bold">Фильтр по уроку:</div>
+              <select class="input-soft sm:!w-72" onchange="App.setTenseFilter(this.value)">
+                <option value="all" ${f.lesson === 'all' ? 'selected' : ''}>Все уроки</option>
+                <option value="none" ${f.lesson === 'none' ? 'selected' : ''}>Без урока</option>
+                ${state.lessons.map(l => `<option value="${l.id}" ${f.lesson === l.id ? 'selected' : ''}>${escapeHtml(l.title)}</option>`).join('')}
+              </select>
+            </div>
+
+            ${list.length === 0 ? `
+              <div class="card p-10 text-center text-[#6E717A]">Времён пока нет. Нажмите «+ Добавить», чтобы создать первую карточку времени.</div>
+            ` : `<div class="space-y-4">
+              ${list.map(t => {
+                const pct = t.totalCount > 0 ? Math.round((t.correctCount / t.totalCount) * 100) : (t.status === 'Знаю' ? 100 : 0);
+                return `
+                  <div class="card p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <h3 class="text-xl font-extrabold text-[#236AB9]">${escapeHtml(t.name)}</h3>
+                          <button type="button" onclick="App.toggleTenseStatus('${t.id}')">${getStatusBadgeHtml(t.status)}</button>
+                          ${getLessonBadgesHtml(t.lessonIds)}
+                        </div>
+                        <p class="text-sm text-[#6E717A] mt-1">${escapeHtml(t.usage)}</p>
+                      </div>
+                      <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="App.startTensesPractice('${t.id}', 'input')" class="btn-soft !bg-[#E6F1FC] text-[#236AB9] text-xs">✍️ Практика (${(t.exercises || []).length})</button>
+                        <button type="button" onclick="App.openTenseModal('${t.id}')" class="btn-soft !p-2 text-xs">✏️</button>
+                        <button type="button" onclick="App.deleteTense('${t.id}')" class="btn-soft !p-2 text-xs">🗑️</button>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                      <div class="p-3 rounded-2xl bg-[#E5F6EE]/60">
+                        <span class="font-extrabold text-[#1E7F53]">+ Утверждение</span>
+                        <div class="font-bold mt-1 text-sm">${escapeHtml(t.formulaPos)}</div>
+                      </div>
+                      <div class="p-3 rounded-2xl bg-[#FDECEB]/60">
+                        <span class="font-extrabold text-[#C84444]">− Отрицание</span>
+                        <div class="font-bold mt-1 text-sm">${escapeHtml(t.formulaNeg)}</div>
+                      </div>
+                      <div class="p-3 rounded-2xl bg-[#E6F1FC]/70">
+                        <span class="font-extrabold text-[#236AB9]">? Вопрос</span>
+                        <div class="font-bold mt-1 text-sm">${escapeHtml(t.formulaQ)}</div>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div class="p-3 rounded-2xl bg-[#FAF9F6]">
+                        <div class="font-bold text-[#6E717A] mb-1">Слова-маркеры</div>
+                        <div class="font-semibold text-[#2D2E32]">${escapeHtml(t.markers)}</div>
+                      </div>
+                      <div class="p-3 rounded-2xl bg-[#FAF9F6]">
+                        <div class="font-bold text-[#6E717A] mb-1">Примеры</div>
+                        <div class="space-y-0.5 text-[#2D2E32]">${escapeHtml(t.examples).replace(/\n/g, '<br/>')}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div class="flex items-center justify-between text-xs font-bold mb-1">
+                        <span class="text-[#6E717A]">Освоенность времени</span>
+                        <span>${pct}%</span>
+                      </div>
+                      <div class="w-full h-2 bg-[#F2F0EA] rounded-full overflow-hidden">
+                        <div class="h-full rounded-full" style="width:${pct}%; background:${pct >= 80 ? '#A8DFC0' : '#4C8FE0'};"></div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>`}
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 6: CHEATSHEET (Warm Cream #FEF6DF)
+      // =========================================================================
+      function renderCheatsheetView() {
+        const f = ui.cheatsheetFilter;
+        const allCategories = ['Все'].concat(Array.from(new Set(state.cheatsheets.map(c => c.category || 'Общее'))));
+        const list = state.cheatsheets.filter(c => {
+          if (f.tag !== 'Все' && (c.category || 'Общее') !== f.tag) return false;
+          if (f.lesson === 'none' && c.lessonIds && c.lessonIds.length > 0) return false;
+          if (f.lesson !== 'all' && f.lesson !== 'none' && !(c.lessonIds || []).includes(f.lesson)) return false;
+          if (f.search) {
+            const q = f.search.toLowerCase();
+            const hay = `${c.title} ${c.content} ${(c.tags || []).join(' ')}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="card p-5 sm:p-6 bg-[#FEF6DF]/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#A56F08]">Cheatsheet · ${state.cheatsheets.length}</span>
+                <h2 class="text-2xl font-extrabold mt-2">Шпаргалки и правила</h2>
+                <p class="text-sm text-[#6E717A] mt-1">Быстрый справочник с поддержкой заголовков, списков, жирного текста и поиска.</p>
+              </div>
+              <button type="button" onclick="App.openCheatsheetModal()" class="btn-primary !bg-[#A56F08] hover:!bg-[#8A5B06] shrink-0">+ Добавить</button>
+            </div>
+
+            <div class="card p-4 space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input type="text" class="input-soft" placeholder="Поиск по тексту, заголовкам, тегам..." value="${escapeHtml(f.search)}" oninput="App.setCheatsheetFilter('search', this.value)" />
+                <select class="input-soft" onchange="App.setCheatsheetFilter('lesson', this.value)">
+                  <option value="all" ${f.lesson === 'all' ? 'selected' : ''}>Все уроки</option>
+                  <option value="none" ${f.lesson === 'none' ? 'selected' : ''}>Без урока</option>
+                  ${state.lessons.map(l => `<option value="${l.id}" ${f.lesson === l.id ? 'selected' : ''}>${escapeHtml(l.title)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                ${allCategories.map(cat => `
+                  <button type="button" onclick="App.setCheatsheetFilter('tag', '${escapeHtml(cat)}')" class="pill px-3.5 py-1.5 text-xs font-bold shrink-0 ${f.tag === cat ? 'bg-[#A56F08] text-white' : 'bg-[#F3F1EC] text-[#6E717A]'}">
+                    ${escapeHtml(cat)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            ${list.length === 0 ? `
+              <div class="card p-10 text-center text-[#6E717A]">Шпаргалок по запросу не найдено.</div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${list.map(c => `
+                  <div class="card p-5 flex flex-col justify-between gap-3">
+                    <div>
+                      <div class="flex items-start justify-between gap-2">
+                        <div>
+                          <span class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#FEF6DF] text-[#A56F08]">${escapeHtml(c.category || 'Общее')}</span>
+                          <h3 class="text-lg font-extrabold mt-1.5">${escapeHtml(c.title)}</h3>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <button type="button" onclick="App.openCheatsheetModal('${c.id}')" class="btn-soft !p-1.5 text-xs">✏️</button>
+                          <button type="button" onclick="App.deleteCheatsheet('${c.id}')" class="btn-soft !p-1.5 text-xs">🗑️</button>
+                        </div>
+                      </div>
+                      <div class="cheatsheet-body text-sm text-[#2D2E32] mt-3">${renderMarkdownLite(c.content)}</div>
+                    </div>
+                    <div class="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-black/[0.04]">
+                      <div class="flex flex-wrap gap-1.5">${getLessonBadgesHtml(c.lessonIds)}</div>
+                      <div class="flex flex-wrap gap-1">
+                        ${(c.tags || []).map(tg => `<span class="pill px-2 py-0.5 text-[11px] bg-[#F3F1EC] text-[#6E717A]">#${escapeHtml(tg)}</span>`).join('')}
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 7: TESTS (Control Tests every 2 days, All or By Lesson)
+      // =========================================================================
+      function renderTestsView() {
+        const lastTest = state.testsHistory && state.testsHistory[0];
+        const daysAgo = lastTest ? daysBetween(lastTest.date, getDateKey()) : null;
+
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="card p-5 sm:p-6 bg-[#EFEAFD]/75">
+              <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#5B3FD9]">Tests · Раз в 2 дня</span>
+              <h2 class="text-2xl font-extrabold mt-2">Контрольные тесты</h2>
+              <p class="text-sm text-[#6E717A] mt-1">
+                Смешанный тест из Words, Collocations & Phrases и Tenses с приоритетом на статус «Изучаю» и новые записи.
+              </p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Охват материалов</label>
+                  <select class="input-soft !bg-white" onchange="App.setTestConfig('scope', this.value)">
+                    <option value="all" ${ui.testScope === 'all' ? 'selected' : ''}>Все материалы</option>
+                    ${state.lessons.map(l => `<option value="${l.id}" ${ui.testScope === l.id ? 'selected' : ''}>${escapeHtml(l.title)}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Количество вопросов</label>
+                  <select class="input-soft !bg-white" onchange="App.setTestConfig('length', this.value)">
+                    <option value="15" ${ui.testLength === 15 ? 'selected' : ''}>15 вопросов</option>
+                    <option value="20" ${ui.testLength === 20 ? 'selected' : ''}>20 вопросов</option>
+                  </select>
+                </div>
+                <div class="flex items-end">
+                  <button type="button" onclick="App.startControlTest()" class="btn-primary w-full !py-3">
+                    ▶ Начать контрольный тест
+                  </button>
+                </div>
+              </div>
+
+              ${lastTest ? `
+                <div class="mt-4 text-xs font-semibold text-[#55506A]">
+                  Последний тест: <strong>${formatRuDate(lastTest.date)}</strong> (${daysAgo === 0 ? 'сегодня' : `${daysAgo} дн. назад`}) · Результат: <strong>${lastTest.percent}%</strong> (${lastTest.score}/${lastTest.total})
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="card p-5">
+              <h3 class="font-extrabold text-base mb-3">История прохождений</h3>
+              ${(!state.testsHistory || state.testsHistory.length === 0) ? `
+                <p class="text-sm text-[#6E717A]">Пока нет пройденных тестов.</p>
+              ` : `
+                <div class="space-y-2.5">
+                  ${state.testsHistory.map(h => `
+                    <div class="p-3.5 rounded-2xl bg-[#FAF9F6] flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div class="font-bold text-sm">${escapeHtml(h.scopeLabel || 'Все материалы')}</div>
+                        <div class="text-xs text-[#6E717A]">${formatRuDate(h.date)} · Ошибок: ${h.mistakesCount || 0}</div>
+                      </div>
+                      <span class="pill px-3.5 py-1 text-sm font-extrabold ${h.percent >= 80 ? 'bg-[#A8DFC0] text-[#1A5736]' : h.percent >= 60 ? 'bg-[#FEF6DF] text-[#A56F08]' : 'bg-[#FDECEB] text-[#C84444]'}">
+                        ${h.percent}% (${h.score}/${h.total})
+                      </span>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 8: MISTAKES (Peach-Pink #FDECEB)
+      // =========================================================================
+      function renderMistakesView() {
+        return `
+          <div class="space-y-5 animate-fade">
+            <div class="card p-5 sm:p-6 bg-[#FDECEB]/85 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="pill px-3 py-1 text-xs font-bold bg-white text-[#C84444]">Mistakes · ${state.mistakes.length}</span>
+                <h2 class="text-2xl font-extrabold mt-2">Работа над ошибками</h2>
+                <p class="text-sm text-[#6E717A] mt-1">Карточка автоматически убирается из списка после <strong>2 правильных ответов подряд</strong>.</p>
+              </div>
+              <button type="button" onclick="App.startMistakesPractice()" class="btn-primary !bg-[#C84444] hover:!bg-[#AB3636] shrink-0" ${state.mistakes.length === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
+                ⚡ Проработать ошибки (${state.mistakes.length})
+              </button>
+            </div>
+
+            ${state.mistakes.length === 0 ? `
+              <div class="card p-10 text-center">
+                <div class="text-3xl mb-2">🌿</div>
+                <div class="font-extrabold text-lg">Ошибок нет!</div>
+                <p class="text-sm text-[#6E717A] mt-1">Все сложные карточки проработаны.</p>
+              </div>
+            ` : `
+              <div class="space-y-3">
+                ${state.mistakes.map(m => `
+                  <div class="card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#FDECEB] text-[#C84444]">${escapeHtml(m.section)}</span>
+                        <span class="pill px-2.5 py-0.5 text-[11px] font-bold ${m.streak === 1 ? 'bg-[#FEF6DF] text-[#A56F08]' : 'bg-[#F3F1EC] text-[#6E717A]'}">
+                          Верно подряд: ${m.streak || 0} / 2
+                        </span>
+                        <span class="text-xs text-[#6E717A]">${formatRuDate(m.addedAt)}</span>
+                      </div>
+                      <div class="font-extrabold text-base mt-1.5">${escapeHtml(m.prompt)}</div>
+                      <div class="text-sm font-semibold text-[#1E7F53] mt-0.5">Верный ответ: ${escapeHtml(m.expected)}</div>
+                      ${m.hint ? `<div class="text-xs text-[#6E717A] mt-1">${escapeHtml(m.hint)}</div>` : ''}
+                    </div>
+                    <button type="button" onclick="App.removeMistakeManually('${m.id}')" class="btn-soft text-xs shrink-0">Убрать</button>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // VIEW 9: REPORT (Stats + 14-day Tracker + Teacher Report Copy)
+      // =========================================================================
+      function buildTeacherReportText() {
+        const { totalDays, streak } = computeStreakAndDays();
+        const wordsKnown = state.words.filter(w => w.status === 'Знаю').length;
+        const wordsLearning = state.words.filter(w => w.status === 'Изучаю').length;
+        const phrasesKnown = state.phrases.filter(p => p.status === 'Знаю').length;
+        const tensesKnown = state.tenses.filter(t => t.status === 'Знаю').length;
+        const accuracy = state.stats.totalAnswers > 0 ? Math.round((state.stats.correctAnswers / state.stats.totalAnswers) * 100) : 0;
+        const lastTest = state.testsHistory && state.testsHistory[0];
+
+        const lessonLines = state.lessons.map(l => {
+          const st = getLessonStats(l.id);
+          return `• ${l.title}: ${st.percent}% (${st.knownTrackable}/${st.totalTrackable})`;
+        }).join('\n');
+
+        return [
+          `📊 Отчёт English Every Day (${formatRuDate(getDateKey())})`,
+          `🔥 Серия подряд: ${streak} дн. (всего дней занятий: ${totalDays})`,
+          `📚 Слова: Знаю ${wordsKnown} / ${state.words.length} (в работе: ${wordsLearning})`,
+          `💬 Фразы и коллокации: Знаю ${phrasesKnown} / ${state.phrases.length}`,
+          `⏱ Времена: Освоено ${tensesKnown} / ${state.tenses.length}`,
+          `🎯 Общая точность ответов: ${accuracy}%`,
+          `📝 Последний тест: ${lastTest ? `${lastTest.percent}% (${lastTest.score}/${lastTest.total}, ${formatRuDate(lastTest.date)}, ${lastTest.scopeLabel})` : 'ещё не пройден'}`,
+          `📌 В работе над ошибками: ${state.mistakes.length}`,
+          state.lessons.length ? `\n📖 Прогресс по урокам:\n${lessonLines}` : ''
+        ].filter(Boolean).join('\n');
+      }
+
+      function renderReportView() {
+        const { totalDays, streak } = computeStreakAndDays();
+        const wordsKnown = state.words.filter(w => w.status === 'Знаю').length;
+        const wordsLearning = state.words.filter(w => w.status === 'Изучаю').length;
+        const phrasesKnown = state.phrases.filter(p => p.status === 'Знаю').length;
+        const tensesKnown = state.tenses.filter(t => t.status === 'Знаю').length;
+        const accuracy = state.stats.totalAnswers > 0 ? Math.round((state.stats.correctAnswers / state.stats.totalAnswers) * 100) : 0;
+        const lastTest = state.testsHistory && state.testsHistory[0];
+
+        // 14 days activity tracker
+        const trackerDays = [];
+        for (let i = -13; i <= 0; i++) {
+          const dk = getOffsetDateKey(i);
+          const rec = (state.stats.activityByDate && state.stats.activityByDate[dk]) || { tasks: 0, completed: false };
+          const dNum = dk.slice(8, 10);
+          trackerDays.push({ dk, dNum, tasks: rec.tasks || 0, completed: !!rec.completed, isToday: i === 0 });
+        }
+
+        const reportText = buildTeacherReportText();
+
+        return `
+          <div class="space-y-5 animate-fade">
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <div class="card p-5 bg-[#E5F6EE]/70">
+                <div class="text-xs font-bold text-[#1E7F53]">Занятия и серия</div>
+                <div class="text-2xl sm:text-3xl font-extrabold mt-1">${streak} дн. подряд</div>
+                <div class="text-xs text-[#6E717A] mt-1">Всего засчитано дней: ${totalDays}</div>
+              </div>
+
+              <div class="card p-5 bg-[#EFEAFD]/75">
+                <div class="text-xs font-bold text-[#5B3FD9]">Изучено слов</div>
+                <div class="text-2xl sm:text-3xl font-extrabold mt-1">${wordsKnown} / ${state.words.length}</div>
+                <div class="text-xs text-[#6E717A] mt-1">В работе («Изучаю»): ${wordsLearning}</div>
+              </div>
+
+              <div class="card p-5 bg-[#E5F6EE]/60">
+                <div class="text-xs font-bold text-[#1E7F53]">Фразы и коллокации</div>
+                <div class="text-2xl sm:text-3xl font-extrabold mt-1">${phrasesKnown} / ${state.phrases.length}</div>
+                <div class="text-xs text-[#6E717A] mt-1">Статус «Знаю»</div>
+              </div>
+
+              <div class="card p-5 bg-[#E6F1FC]/80">
+                <div class="text-xs font-bold text-[#236AB9]">Освоено времён</div>
+                <div class="text-2xl sm:text-3xl font-extrabold mt-1">${tensesKnown} / ${state.tenses.length}</div>
+                <div class="text-xs text-[#6E717A] mt-1">В справочнике</div>
+              </div>
+
+              <div class="card p-5 bg-[#FEF6DF]/85">
+                <div class="text-xs font-bold text-[#A56F08]">Точность ответов</div>
+                <div class="text-2xl sm:text-3xl font-extrabold mt-1">${accuracy}%</div>
+                <div class="text-xs text-[#6E717A] mt-1">Всего ответов: ${state.stats.totalAnswers || 0}</div>
+              </div>
+
+              <div class="card p-5 bg-[#FDECE0]/80">
+                <div class="text-xs font-bold text-[#C25E24]">Последний тест</div>
+                <div class="text-2xl sm:text-3xl font-extrabold mt-1">${lastTest ? `${lastTest.percent}%` : '—'}</div>
+                <div class="text-xs text-[#6E717A] mt-1">${lastTest ? formatRuDate(lastTest.date) : 'Ещё не пройден'}</div>
+              </div>
+            </div>
+
+            <!-- Lessons Progress Card -->
+            <div class="card p-5">
+              <h3 class="font-extrabold text-base mb-3">Прогресс по урокам</h3>
+              ${state.lessons.length === 0 ? '<p class="text-sm text-[#6E717A]">Уроков пока нет — добавьте первый в разделе Lessons.</p>' : `<div class="space-y-3">
+                ${state.lessons.map(l => {
+                  const st = getLessonStats(l.id);
+                  return `
+                    <div>
+                      <div class="flex items-center justify-between text-xs font-bold mb-1">
+                        <button type="button" onclick="App.openLessonDetail('${l.id}')" class="hover:text-[#C25E24] transition text-left">${escapeHtml(l.title)}</button>
+                        <span>${st.percent}% (${st.knownTrackable}/${st.totalTrackable})</span>
+                      </div>
+                      <div class="w-full h-2.5 bg-[#F2F0EA] rounded-full overflow-hidden">
+                        <div class="h-full rounded-full" style="width:${st.percent}%; background:${st.percent === 100 ? '#A8DFC0' : '#E08B52'};"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>`}
+            </div>
+
+            <!-- 14-day Regularity Tracker -->
+            <div class="card p-5">
+              <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+                <div>
+                  <h3 class="font-extrabold text-base">Трекер регулярности (14 дней)</h3>
+                  <p class="text-xs text-[#6E717A]">Шалфейный квадрат — дневная норма выполнена</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-7 sm:grid-cols-14 gap-2" style="grid-template-columns: repeat(auto-fit, minmax(38px, 1fr));">
+                ${trackerDays.map(d => `
+                  <div
+                    class="aspect-square rounded-2xl flex flex-col items-center justify-center text-xs font-bold transition"
+                    style="background:${d.completed ? '#A8DFC0' : d.tasks > 0 ? '#FEF6DF' : '#F3F1EC'}; color:${d.completed ? '#1A5736' : '#6E717A'}; ${d.isToday ? 'outline: 2px solid #2D2E32; outline-offset: 1px;' : ''}"
+                    title="${formatRuDate(d.dk)}: ${d.tasks} заданий"
+                  >
+                    <span>${d.dNum}</span>
+                    <span class="text-[10px] opacity-75">${d.tasks > 0 ? d.tasks : ''}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Teacher Report Generator -->
+            <div class="card p-5">
+              <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+                <div>
+                  <h3 class="font-extrabold text-base">Отчёт для преподавателя</h3>
+                  <p class="text-xs text-[#6E717A]">Готовый текст для отправки в мессенджер в один клик</p>
+                </div>
+                <button type="button" id="copy-report-btn" onclick="App.copyReport()" class="btn-primary">
+                  📋 Скопировать отчёт
+                </button>
+              </div>
+              <pre id="teacher-report-text" class="bg-[#FAF9F6] rounded-2xl p-4 text-xs sm:text-sm font-medium whitespace-pre-wrap text-[#2D2E32] leading-relaxed">${escapeHtml(reportText)}</pre>
+            </div>
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // INTERACTIVE PRACTICE & TEST ENGINE (Unified Session View)
+      // =========================================================================
+      function renderSessionView() {
+        const s = ui.session;
+        if (!s) return '';
+
+        // Session Finished Summary
+        if (s.index >= s.items.length) {
+          const total = s.items.length || 1;
+          const pct = Math.round((s.score / total) * 100);
+          return `
+            <div class="card p-6 sm:p-8 max-w-xl mx-auto text-center space-y-5 animate-fade">
+              <div class="w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl" style="background:${pct >= 80 ? '#A8DFC0' : '#FEF6DF'};">
+                ${pct >= 80 ? '🎉' : '💪'}
+              </div>
+              <div>
+                <h2 class="text-2xl font-extrabold">${escapeHtml(s.title)} — завершено!</h2>
+                <p class="text-sm text-[#6E717A] mt-1">Верных ответов: <strong>${s.score} из ${total}</strong> (${pct}%)</p>
+              </div>
+
+              ${s.mistakesList && s.mistakesList.length > 0 ? `
+                <div class="text-left bg-[#FDECEB]/70 rounded-2xl p-4 space-y-2">
+                  <div class="text-xs font-extrabold text-[#C84444]">Ошибки (автоматически добавлены в Mistakes):</div>
+                  ${s.mistakesList.map(m => `
+                    <div class="text-xs">
+                      <strong>${escapeHtml(m.prompt)}</strong> → <span class="text-[#1E7F53] font-bold">${escapeHtml(m.expected)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div class="bg-[#E5F6EE] rounded-2xl p-3 text-xs font-bold text-[#1A5736]">Без единой ошибки!</div>
+              `}
+
+              <button type="button" onclick="App.exitSession()" class="btn-primary !px-7 !py-3">Вернуться в раздел</button>
+            </div>
+          `;
+        }
+
+        const item = s.items[s.index];
+        const pct = Math.round((s.index / s.items.length) * 100);
+
+        return `
+          <div class="max-w-2xl mx-auto space-y-4 animate-fade">
+            <div class="flex items-center justify-between gap-3">
+              <button type="button" onclick="App.exitSession()" class="btn-soft text-xs">← Завершить</button>
+              <div class="text-xs font-extrabold text-[#6E717A]">${escapeHtml(s.title)} · ${s.index + 1} / ${s.items.length}</div>
+            </div>
+
+            <div class="w-full h-2 bg-[#ECE9E1] rounded-full overflow-hidden">
+              <div class="h-full bg-[#5B3FD9] rounded-full transition-all" style="width:${pct}%"></div>
+            </div>
+
+            ${renderSessionCard(item, s)}
+          </div>
+        `;
+      }
+
+      function renderSessionCard(item, s) {
+        // 1. FLASHCARD
+        if (item.kind === 'flashcard') {
+          return `
+            <div class="flip-scene">
+              <div class="flip-card ${s.flipped ? 'is-flipped' : ''}" onclick="App.flipCard()">
+                <div class="flip-face bg-white">
+                  <span class="pill px-3 py-1 text-xs font-bold bg-[#EFEAFD] text-[#5B3FD9] mb-4">${escapeHtml(item.badge || 'Карточка')}</span>
+                  <div class="text-2xl sm:text-3xl font-extrabold">${escapeHtml(item.front)}</div>
+                  <button type="button" onclick="event.stopPropagation(); App.speak('${escapeHtml(item.speak || item.front)}')" class="btn-soft mt-4 text-xs">🔊 Озвучить</button>
+                  <div class="text-xs text-[#6E717A] mt-6">Нажмите на карточку, чтобы перевернуть</div>
+                </div>
+                <div class="flip-face flip-back bg-[#FAF9F6]">
+                  <span class="pill px-3 py-1 text-xs font-bold bg-[#E5F6EE] text-[#1E7F53] mb-3">Перевод</span>
+                  <div class="text-2xl font-extrabold text-[#2D2E32]">${escapeHtml(item.back)}</div>
+                  ${item.example ? `<p class="text-sm text-[#6E717A] italic mt-3 max-w-md">“${escapeHtml(item.example)}”</p>` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 pt-2">
+              <button type="button" onclick="App.answerFlashcard(false)" class="btn-soft !bg-[#FDECEB] !text-[#C84444] !py-3.5 text-sm font-extrabold">↺ Повторить</button>
+              <button type="button" onclick="App.answerFlashcard(true)" class="btn-soft !bg-[#A8DFC0] !text-[#1A5736] !py-3.5 text-sm font-extrabold">✓ Знаю</button>
+            </div>
+          `;
+        }
+
+        // 2. MULTIPLE CHOICE QUIZ
+        if (item.kind === 'choice') {
+          return `
+            <div class="card p-6 sm:p-7 space-y-5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="pill px-3 py-1 text-xs font-bold bg-[#EFEAFD] text-[#5B3FD9]">${escapeHtml(item.badge || 'Квиз')}</span>
+                ${item.speak ? `<button type="button" onclick="App.speak('${escapeHtml(item.speak)}')" class="btn-soft !py-1.5 !px-3 text-xs">🔊</button>` : ''}
+              </div>
+              <div class="text-xl sm:text-2xl font-extrabold leading-snug">${escapeHtml(item.prompt)}</div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${item.options.map((opt, idx) => {
+                  let cls = 'bg-[#FAF9F6] hover:bg-[#F1EFE8] text-[#2D2E32]';
+                  if (s.answered) {
+                    if (opt === item.answer) cls = 'bg-[#A8DFC0] text-[#1A5736]';
+                    else if (opt === s.selectedOption) cls = 'bg-[#FDECEB] text-[#C84444]';
+                  }
+                  return `
+                    <button
+                      type="button"
+                      ${s.answered ? 'disabled' : ''}
+                      onclick="App.submitChoiceAnswer(${idx})"
+                      class="p-4 rounded-2xl text-left font-bold text-sm transition ${cls}"
+                    >
+                      ${escapeHtml(opt)}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+
+              ${s.answered ? renderAnswerFeedback(item, s) : ''}
+            </div>
+          `;
+        }
+
+        // 3. TEXT INPUT (Fill-in-the-blank / Tense brackets / Mistakes)
+        return `
+          <div class="card p-6 sm:p-7 space-y-5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="pill px-3 py-1 text-xs font-bold bg-[#E6F1FC] text-[#236AB9]">${escapeHtml(item.badge || 'Ввод ответа')}</span>
+              ${item.speak ? `<button type="button" onclick="App.speak('${escapeHtml(item.speak)}')" class="btn-soft !py-1.5 !px-3 text-xs">🔊</button>` : ''}
+            </div>
+            <div class="text-xl sm:text-2xl font-extrabold leading-snug">${escapeHtml(item.prompt)}</div>
+            ${item.subtext ? `<div class="text-sm text-[#6E717A]">${escapeHtml(item.subtext)}</div>` : ''}
+
+            <form onsubmit="event.preventDefault(); App.submitInputAnswer();" class="flex flex-col sm:flex-row gap-2.5">
+              <input
+                id="session-text-input"
+                type="text"
+                class="input-soft flex-1 text-base font-semibold"
+                placeholder="Введите ответ..."
+                autocomplete="off"
+                ${s.answered ? 'disabled' : ''}
+                value="${escapeHtml(s.inputValue || '')}"
+              />
+              ${!s.answered ? `<button type="submit" class="btn-primary !px-6">Проверить</button>` : ''}
+            </form>
+
+            ${s.answered ? renderAnswerFeedback(item, s) : ''}
+          </div>
+        `;
+      }
+
+      function renderAnswerFeedback(item, s) {
+        return `
+          <div class="p-4 rounded-2xl ${s.lastCorrect ? 'bg-[#E5F6EE] text-[#1A5736]' : 'bg-[#FDECEB] text-[#C84444]'} space-y-1.5">
+            <div class="font-extrabold text-sm">
+              ${s.lastCorrect ? '✓ Верно!' : `✕ Неверно. Правильный ответ: ${escapeHtml(item.answer)}`}
+            </div>
+            ${item.hint ? `<div class="text-xs opacity-90">${escapeHtml(item.hint)}</div>` : ''}
+            ${(!s.lastCorrect && item.ruleFormula) ? `<div class="text-xs font-bold mt-1">Формула: ${escapeHtml(item.ruleFormula)}</div>` : ''}
+            <div class="pt-2">
+              <button type="button" onclick="App.nextSessionItem()" class="btn-primary !py-2 !px-5 text-xs">Далее →</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // SESSION BUILDERS
+      // =========================================================================
+      function makeWordQuizItem(w, direction) {
+        const isEnRu = direction !== 'ru-en';
+        const pool = state.words.filter(x => x.id !== w.id);
+        const distractors = shuffle(pool).slice(0, 3).map(x => isEnRu ? x.translation : x.word);
+        const answer = isEnRu ? w.translation : w.word;
+        const options = shuffle([answer].concat(distractors));
+        return {
+          kind: 'choice',
+          section: 'Words',
+          itemId: w.id,
+          badge: isEnRu ? 'Words · EN → RU' : 'Words · RU → EN',
+          prompt: isEnRu ? w.word : w.translation,
+          speak: w.word,
+          answer,
+          options,
+          hint: w.example || ''
+        };
+      }
+
+      function makePhraseBlankItem(p) {
+        const words = p.phrase.trim().split(/\s+/);
+        const target = words.length > 1 ? words[words.length - 1] : words[0];
+        let sentence = p.example || p.phrase;
+        const re = new RegExp(target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        const masked = re.test(sentence) ? sentence.replace(re, '_____') : `${p.phrase.replace(re, '_____')} (${p.translation})`;
+        return {
+          kind: 'input',
+          section: 'Phrases',
+          itemId: p.id,
+          badge: 'Phrases · Заполни пропуск',
+          prompt: masked,
+          subtext: `Фраза: «${p.translation}»`,
+          speak: p.phrase,
+          answer: target,
+          accept: [target.toLowerCase(), p.phrase.toLowerCase()],
+          hint: `Полная фраза: ${p.phrase}`
+        };
+      }
+
+      function makeTenseItem(t, ex, mode) {
+        if (mode === 'choice' && ex.options && ex.options.length >= 2) {
+          return {
+            kind: 'choice',
+            section: 'Tenses',
+            itemId: t.id,
+            exerciseId: ex.id,
+            badge: `Tenses · ${t.name}`,
+            prompt: ex.prompt,
+            answer: ex.answer,
+            options: shuffle(ex.options),
+            hint: ex.hint || t.usage,
+            ruleFormula: `+ ${t.formulaPos} | − ${t.formulaNeg} | ? ${t.formulaQ}`
+          };
+        }
+        return {
+          kind: 'input',
+          section: 'Tenses',
+          itemId: t.id,
+          exerciseId: ex.id,
+          badge: `Tenses · ${t.name}`,
+          prompt: ex.prompt,
+          subtext: 'Раскройте скобки, введя нужную форму глагола',
+          answer: ex.answer,
+          accept: (ex.accept || [ex.answer]).map(a => a.toLowerCase()),
+          hint: ex.hint || t.usage,
+          ruleFormula: `+ ${t.formulaPos} | − ${t.formulaNeg} | ? ${t.formulaQ}`
+        };
+      }
+
+      function makeMistakeItem(m) {
+        return {
+          kind: 'input',
+          section: m.section,
+          itemId: m.itemId,
+          mistakeId: m.id,
+          badge: `Mistakes · ${m.section} (${m.streak || 0}/2)`,
+          prompt: m.prompt,
+          subtext: 'Введите правильный ответ (2 раза подряд уберут карточку)',
+          answer: m.expected,
+          accept: [m.expected.toLowerCase()],
+          hint: m.hint || ''
+        };
+      }
+
+      // =========================================================================
+      // MODALS: CRUD, BULK IMPORT, ATTACH MATERIALS, FILE UPLOAD + GEMINI PARSER
+      // =========================================================================
+      function openModal(html) {
+        const root = document.getElementById('modal-root');
+        if (!root) return;
+        root.innerHTML = `
+          <div class="modal-backdrop" onclick="if(event.target===this) App.closeModal()">
+            <div class="modal-panel" onclick="event.stopPropagation()">
+              ${html}
+            </div>
+          </div>
+        `;
+      }
+
+      function closeModal() {
+        const root = document.getElementById('modal-root');
+        if (root) root.innerHTML = '';
+      }
+
+      function renderLessonCheckboxes(selectedIds) {
+        const set = new Set(selectedIds || []);
+        if (state.lessons.length === 0) return '<p class="text-xs text-[#6E717A]">Нет созданных уроков.</p>';
+        return `
+          <div class="flex flex-wrap gap-2">
+            ${state.lessons.map(l => `
+              <label class="pill px-3 py-1.5 text-xs font-bold bg-[#FAF9F6] cursor-pointer flex items-center gap-1.5">
+                <input type="checkbox" name="lessonIds" value="${l.id}" ${set.has(l.id) ? 'checked' : ''} class="accent-[#C25E24]" />
+                <span>${escapeHtml(l.title)}</span>
+              </label>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      // =========================================================================
+      // LESSON FILE PARSING (.txt, .md, .docx, .pdf, Images + Gemini API + Offline Fallback)
+      // =========================================================================
+      async function extractTextFromDocx(arrayBuffer) {
+        // Lightweight ZIP reader using native DecompressionStream('deflate-raw')
+        const bytes = new Uint8Array(arrayBuffer);
+        const view = new DataView(arrayBuffer);
+        let offset = 0;
+        while (offset + 30 < bytes.length) {
+          if (view.getUint32(offset, true) !== 0x04034b50) break;
+          const compression = view.getUint16(offset + 8, true);
+          const compSize = view.getUint32(offset + 18, true);
+          const nameLen = view.getUint16(offset + 26, true);
+          const extraLen = view.getUint16(offset + 28, true);
+          const name = new TextDecoder().decode(bytes.subarray(offset + 30, offset + 30 + nameLen));
+          const dataStart = offset + 30 + nameLen + extraLen;
+          const dataEnd = dataStart + compSize;
+          if (name === 'word/document.xml') {
+            const chunk = bytes.subarray(dataStart, dataEnd);
+            let xmlText = '';
+            if (compression === 0) {
+              xmlText = new TextDecoder().decode(chunk);
+            } else if (compression === 8 && typeof DecompressionStream !== 'undefined') {
+              const ds = new DecompressionStream('deflate-raw');
+              const writer = ds.writable.getWriter();
+              writer.write(chunk);
+              writer.close();
+              const buf = await new Response(ds.readable).arrayBuffer();
+              xmlText = new TextDecoder().decode(buf);
+            }
+            const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+            const paras = Array.from(doc.getElementsByTagName('w:p'));
+            return paras.map(p => Array.from(p.getElementsByTagName('w:t')).map(t => t.textContent).join('')).filter(Boolean).join('\n');
+          }
+          offset = dataEnd;
+        }
+        return '';
+      }
+
+      async function extractTextFromPdf(arrayBuffer) {
+        try {
+          if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const pages = [];
+            for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
+              const page = await pdf.getPage(i);
+              const tc = await page.getTextContent();
+              pages.push(tc.items.map(it => it.str).join(' '));
+            }
+            return pages.join('\n');
+          }
+        } catch (_) {}
+        // Fallback: extract printable ASCII/UTF-8 strings
+        const raw = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(arrayBuffer));
+        const matches = raw.match(/\(([^()]{3,120})\)/g) || [];
+        return matches.map(m => m.slice(1, -1)).join('\n');
+      }
+
+      function offlineParseLessonText(text, fileName) {
+        const lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const words = [];
+        const phrases = [];
+        const cheatsheets = [];
+        const notesBuffer = [];
+
+        for (const line of lines) {
+          const clean = line.replace(/^[-•*\d.)]+\s*/, '');
+          const parts = clean.split(/\s*[—–\-|]\s*/).filter(Boolean);
+          if (parts.length >= 2 && /[a-zA-Z]/.test(parts[0]) && parts[0].length < 60) {
+            const en = parts[0].trim();
+            const ru = parts[1].trim();
+            const ex = parts[2] ? parts[2].trim() : '';
+            const wordCount = en.split(/\s+/).length;
+            if (wordCount >= 3) {
+              phrases.push({ checked: true, phrase: en, translation: ru, example: ex });
+            } else {
+              const group = wordCount === 2 && /\b(up|out|off|in|on|over|down|away|back|for|to)\b/i.test(en)
+                ? 'Phrasal verbs'
+                : en.endsWith('ly') ? 'Adverbs'
+                : 'Verbs';
+              words.push({ checked: true, word: en, translation: ru, group, example: ex });
+            }
+          } else {
+            notesBuffer.push(line);
+          }
+        }
+
+        if (notesBuffer.length > 0) {
+          cheatsheets.push({
+            checked: true,
+            title: `Конспект: ${fileName.replace(/\.[^.]+$/, '')}`,
+            category: 'Конспект урока',
+            content: notesBuffer.slice(0, 25).join('\n')
+          });
+        }
+
+        return { words, phrases, cheatsheets, source: 'offline' };
+      }
+
+      async function parseLessonWithGeminiOrFallback(payload) {
+        const apiKey = (config.geminiApiKey || '').trim();
+        if (apiKey) {
+          try {
+            const parts = [{
+              text: `Ты помощник преподавателя английского. Разбери учебный конспект урока и верни ТОЛЬКО валидный JSON без markdown-обёрток вида:
+{
+  "words": [{"word":"...", "translation":"...", "group":"Phrasal verbs|Verbs|Nouns|Adjectives|Adverbs", "example":"..."}],
+  "phrases": [{"phrase":"...", "translation":"...", "example":"..."}],
+  "cheatsheets": [{"title":"...", "category":"Грамматика", "content":"..."}]
+}`
+            }];
+            if (payload.imageBase64 && payload.imageMime) {
+              parts.push({ inline_data: { mime_type: payload.imageMime, data: payload.imageBase64 } });
+            } else {
+              parts.push({ text: payload.text.slice(0, 14000) });
+            }
+
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts }] })
+            });
+            if (resp.ok) {
+              const json = await resp.json();
+              const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const cleaned = rawText.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+              const parsed = JSON.parse(cleaned);
+              return {
+                words: (parsed.words || []).map(w => ({ checked: true, word: w.word || '', translation: w.translation || '', group: WORD_GROUPS.includes(w.group) ? w.group : 'Nouns', example: w.example || '' })),
+                phrases: (parsed.phrases || []).map(p => ({ checked: true, phrase: p.phrase || '', translation: p.translation || '', example: p.example || '' })),
+                cheatsheets: (parsed.cheatsheets || []).map(c => ({ checked: true, title: c.title || 'Правило урока', category: c.category || 'Грамматика', content: c.content || '' })),
+                source: 'gemini'
+              };
+            }
+          } catch (_) {
+            // Fall through to offline parser
+          }
+        }
+
+        if (payload.imageBase64 && !payload.text) {
+          return {
+            words: [{ checked: true, word: 'new word', translation: 'перевод с фото', group: 'Nouns', example: '' }],
+            phrases: [],
+            cheatsheets: [{ checked: true, title: `Фото конспекта (${payload.fileName})`, category: 'Конспект', content: 'Добавьте Gemini API ключ в настройках для автоматического OCR-разбора изображений, или отредактируйте строки вручную ниже.' }],
+            source: 'offline-image'
+          };
+        }
+        return offlineParseLessonText(payload.text, payload.fileName);
+      }
+
+      // =========================================================================
+      // GLOBAL APP CONTROLLER
+      // =========================================================================
+      window.App = {
+        switchTab(tabId) {
+          ui.activeTab = tabId;
+          if (tabId !== 'lessons') ui.selectedLessonId = null;
+          renderMain();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
+        speak(text) {
+          speakText(text);
+        },
+
+        closeModal() {
+          closeModal();
+        },
+
+        // --- Timer ---
+        toggleTimer() {
+          if (ui.timerRunning) {
+            clearInterval(ui.timerInterval);
+            ui.timerInterval = null;
+            ui.timerRunning = false;
+          } else {
+            clearInterval(ui.timerInterval);
+            ui.timerRunning = true;
+            ui.timerInterval = setInterval(() => {
+              if (ui.timerSeconds > 0) {
+                ui.timerSeconds -= 1;
+                const el = document.getElementById('today-timer-display');
+                if (el) {
+                  const m = String(Math.floor(ui.timerSeconds / 60)).padStart(2, '0');
+                  const s = String(ui.timerSeconds % 60).padStart(2, '0');
+                  el.textContent = `${m}:${s}`;
+                }
+              } else {
+                clearInterval(ui.timerInterval);
+                ui.timerRunning = false;
+                showToast('15 минут вышли! Отличное занятие!', 'success');
+                renderMain();
+              }
+            }, 1000);
+          }
+          renderMain();
+        },
+
+        resetTimer() {
+          clearInterval(ui.timerInterval);
+          ui.timerInterval = null;
+          ui.timerRunning = false;
+          ui.timerSeconds = 15 * 60;
+          renderMain();
+        },
+
+        // --- Today Sessions ---
+        startTodaySession() {
+          const plan = buildTodayPlan();
+          const items = [];
+          plan.todayWords.forEach((w, i) => items.push(makeWordQuizItem(w, i % 2 === 0 ? 'en-ru' : 'ru-en')));
+          plan.todayPhrases.forEach(p => items.push(makePhraseBlankItem(p)));
+          plan.todayTenses.forEach(x => items.push(makeTenseItem(x.tense, x.exercise, 'choice')));
+          plan.todayMistakes.forEach(m => items.push(makeMistakeItem(m)));
+          if (items.length === 0) {
+            showToast('Добавьте материалы, чтобы начать занятие', 'error');
+            return;
+          }
+          ui.session = {
+            sourceTab: 'today',
+            title: 'Занятие Today',
+            isTodayFull: true,
+            items,
+            index: 0,
+            flipped: false,
+            answered: false,
+            lastCorrect: false,
+            score: 0,
+            mistakesList: []
+          };
+          renderMain();
+        },
+
+        startTodayBlock(block) {
+          const plan = buildTodayPlan();
+          let items = [];
+          let title = 'Today';
+          if (block === 'words') {
+            items = plan.todayWords.map(w => makeWordQuizItem(w, 'en-ru'));
+            title = 'Today · Words';
+          } else if (block === 'phrases') {
+            items = plan.todayPhrases.map(p => makePhraseBlankItem(p));
+            title = 'Today · Phrases';
+          } else if (block === 'tenses') {
+            items = plan.todayTenses.map(x => makeTenseItem(x.tense, x.exercise, 'input'));
+            title = 'Today · Tenses';
+          } else if (block === 'mistakes') {
+            items = plan.todayMistakes.map(m => makeMistakeItem(m));
+            title = 'Today · Mistakes';
+          }
+          if (items.length === 0) {
+            showToast('В этом блоке пока нет заданий', 'error');
+            return;
+          }
+          ui.session = { sourceTab: 'today', title, items, index: 0, flipped: false, answered: false, score: 0, mistakesList: [] };
+          renderMain();
+        },
+
+        // --- Lessons ---
+        openLessonDetail(lessonId) {
+          ui.activeTab = 'lessons';
+          ui.selectedLessonId = lessonId;
+          renderMain();
+        },
+
+        closeLessonDetail() {
+          ui.selectedLessonId = null;
+          renderMain();
+        },
+
+        openLessonModal(lessonId) {
+          const lesson = lessonId ? state.lessons.find(l => l.id === lessonId) : null;
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-4">${lesson ? 'Редактировать урок' : 'Новый урок'}</h3>
+            <form onsubmit="event.preventDefault(); App.saveLesson('${lesson ? lesson.id : ''}')" class="space-y-3">
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Название урока</label>
+                <input id="f-lesson-title" class="input-soft" required value="${escapeHtml(lesson ? lesson.title : '')}" placeholder="Например: Lesson 3: Travel & Airports" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Описание</label>
+                <textarea id="f-lesson-desc" class="input-soft" rows="3" placeholder="Основные темы урока...">${escapeHtml(lesson ? lesson.description : '')}</textarea>
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+                <button type="submit" class="btn-primary">Сохранить</button>
+              </div>
+            </form>
+          `);
+        },
+
+        saveLesson(lessonId) {
+          const title = document.getElementById('f-lesson-title').value.trim();
+          const description = document.getElementById('f-lesson-desc').value.trim();
+          if (!title) return;
+          if (lessonId) {
+            const l = state.lessons.find(x => x.id === lessonId);
+            if (l) { l.title = title; l.description = description; }
+          } else {
+            state.lessons.push({ id: uid('lesson'), title, description, createdAt: getDateKey() });
+          }
+          saveState();
+          closeModal();
+          renderMain();
+          showToast('Урок сохранён', 'success');
+        },
+
+        deleteLesson(lessonId) {
+          state.lessons = state.lessons.filter(l => l.id !== lessonId);
+          ['words', 'phrases', 'tenses', 'cheatsheets'].forEach(col => {
+            state[col].forEach(item => {
+              item.lessonIds = (item.lessonIds || []).filter(id => id !== lessonId);
+            });
+          });
+          if (ui.selectedLessonId === lessonId) ui.selectedLessonId = null;
+          saveState();
+          renderMain();
+          showToast('Урок удалён');
+        },
+
+        detachMaterial(lessonId, col, itemId) {
+          const item = state[col].find(x => x.id === itemId);
+          if (item) {
+            item.lessonIds = (item.lessonIds || []).filter(id => id !== lessonId);
+            saveState();
+            renderMain();
+          }
+        },
+
+        openAttachMaterialsModal(lessonId) {
+          const lesson = state.lessons.find(l => l.id === lessonId);
+          if (!lesson) return;
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-1">Привязать материалы к уроку</h3>
+            <p class="text-xs text-[#6E717A] mb-4">${escapeHtml(lesson.title)}</p>
+
+            <div class="mb-4">
+              <div class="text-xs font-bold text-[#5B3FD9] mb-2">Выбрать целую группу слов в один клик:</div>
+              <div class="flex flex-wrap gap-1.5">
+                ${WORD_GROUPS.map(g => `
+                  <button type="button" onclick="App.selectWordGroupInAttach('${g}')" class="pill px-3 py-1.5 text-xs font-bold bg-[#EFEAFD] text-[#5B3FD9] hover:brightness-95">
+                    + ${g}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <form id="attach-form" onsubmit="event.preventDefault(); App.saveAttachedMaterials('${lessonId}')" class="space-y-4">
+              <div>
+                <div class="text-xs font-extrabold text-[#5B3FD9] mb-1.5">Words</div>
+                <div class="max-h-36 overflow-y-auto space-y-1 bg-[#FAF9F6] p-3 rounded-2xl">
+                  ${state.words.map(w => `
+                    <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                      <input type="checkbox" name="attach-words" data-group="${escapeHtml(w.group)}" value="${w.id}" ${(w.lessonIds || []).includes(lessonId) ? 'checked' : ''} class="accent-[#5B3FD9]" />
+                      <span>${escapeHtml(w.word)}</span>
+                      <span class="text-[#6E717A]">— ${escapeHtml(w.translation)} (${escapeHtml(w.group)})</span>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div>
+                <div class="text-xs font-extrabold text-[#1E7F53] mb-1.5">Collocations & Phrases</div>
+                <div class="max-h-28 overflow-y-auto space-y-1 bg-[#FAF9F6] p-3 rounded-2xl">
+                  ${state.phrases.map(p => `
+                    <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                      <input type="checkbox" name="attach-phrases" value="${p.id}" ${(p.lessonIds || []).includes(lessonId) ? 'checked' : ''} class="accent-[#1E7F53]" />
+                      <span>${escapeHtml(p.phrase)}</span>
+                      <span class="text-[#6E717A]">— ${escapeHtml(p.translation)}</span>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <div class="text-xs font-extrabold text-[#236AB9] mb-1.5">Tenses</div>
+                  <div class="space-y-1 bg-[#FAF9F6] p-3 rounded-2xl">
+                    ${state.tenses.map(t => `
+                      <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                        <input type="checkbox" name="attach-tenses" value="${t.id}" ${(t.lessonIds || []).includes(lessonId) ? 'checked' : ''} class="accent-[#236AB9]" />
+                        <span>${escapeHtml(t.name)}</span>
+                      </label>
+                    `).join('')}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-xs font-extrabold text-[#A56F08] mb-1.5">Cheatsheet</div>
+                  <div class="space-y-1 bg-[#FAF9F6] p-3 rounded-2xl">
+                    ${state.cheatsheets.map(c => `
+                      <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                        <input type="checkbox" name="attach-cheatsheets" value="${c.id}" ${(c.lessonIds || []).includes(lessonId) ? 'checked' : ''} class="accent-[#A56F08]" />
+                        <span>${escapeHtml(c.title)}</span>
+                      </label>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+                <button type="submit" class="btn-primary">Сохранить привязки</button>
+              </div>
+            </form>
+          `);
+        },
+
+        selectWordGroupInAttach(group) {
+          const boxes = document.querySelectorAll(`input[name="attach-words"][data-group="${group}"]`);
+          boxes.forEach(b => { b.checked = true; });
+          showToast(`Выбрана группа: ${group}`, 'success');
+        },
+
+        saveAttachedMaterials(lessonId) {
+          const map = [
+            { col: 'words', name: 'attach-words' },
+            { col: 'phrases', name: 'attach-phrases' },
+            { col: 'tenses', name: 'attach-tenses' },
+            { col: 'cheatsheets', name: 'attach-cheatsheets' }
+          ];
+          map.forEach(({ col, name }) => {
+            const checked = new Set(Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(i => i.value));
+            state[col].forEach(item => {
+              const ids = new Set(item.lessonIds || []);
+              if (checked.has(item.id)) ids.add(lessonId);
+              else ids.delete(lessonId);
+              item.lessonIds = Array.from(ids);
+            });
+          });
+          saveState();
+          closeModal();
+          renderMain();
+          showToast('Материалы урока обновлены', 'success');
+        },
+
+        startLessonPractice(lessonId, mode) {
+          const st = getLessonStats(lessonId);
+          const lesson = state.lessons.find(l => l.id === lessonId);
+          let items = [];
+          if (mode === 'flashcards') {
+            st.words.forEach(w => items.push({ kind: 'flashcard', section: 'Words', itemId: w.id, badge: `Words · ${w.group}`, front: w.word, back: w.translation, example: w.example, speak: w.word }));
+            st.phrases.forEach(p => items.push({ kind: 'flashcard', section: 'Phrases', itemId: p.id, badge: 'Phrases', front: p.phrase, back: p.translation, example: p.example, speak: p.phrase }));
+          } else {
+            st.words.forEach((w, i) => items.push(makeWordQuizItem(w, i % 2 === 0 ? 'en-ru' : 'ru-en')));
+            st.phrases.forEach(p => items.push(makePhraseBlankItem(p)));
+            st.tenses.forEach(t => (t.exercises || []).forEach(ex => items.push(makeTenseItem(t, ex, 'choice'))));
+            items = shuffle(items);
+          }
+          if (items.length === 0) {
+            showToast('В этом уроке пока нет материалов для тренировки', 'error');
+            return;
+          }
+          ui.session = {
+            sourceTab: 'lessons',
+            title: `${lesson ? lesson.title : 'Урок'} · ${mode === 'flashcards' ? 'Карточки' : 'Микс-квиз'}`,
+            items,
+            index: 0,
+            flipped: false,
+            answered: false,
+            score: 0,
+            mistakesList: []
+          };
+          renderMain();
+        },
+
+        // --- Lesson File Upload & Preview ---
+        openLessonUploadModal(preselectedLessonId) {
+          const targetLesson = preselectedLessonId || (state.lessons[0] ? state.lessons[0].id : 'new');
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-1">Загрузка файла урока</h3>
+            <p class="text-xs text-[#6E717A] mb-4">Поддерживаются .pdf, .docx, .txt, .md и фото конспектов (.png, .jpg, .webp). Разбор выполняется через Gemini API (если указан ключ в настройках) или локальным офлайн-парсером.</p>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Куда сохранить материалы</label>
+                <select id="upload-target-lesson" class="input-soft">
+                  <option value="new">+ Создать новый урок по имени файла</option>
+                  ${state.lessons.map(l => `<option value="${l.id}" ${l.id === targetLesson ? 'selected' : ''}>${escapeHtml(l.title)}</option>`).join('')}
+                </select>
+              </div>
+
+              <label class="block border-2 border-dashed border-[#E0C7B5] bg-[#FDECE0]/40 hover:bg-[#FDECE0]/70 rounded-2xl p-6 text-center cursor-pointer transition">
+                <input id="lesson-file-input" type="file" accept=".pdf,.docx,.txt,.md,image/*" class="hidden" onchange="App.handleLessonFileSelected(this)" />
+                <div class="text-2xl mb-1">📎</div>
+                <div class="font-bold text-sm">Нажмите, чтобы выбрать файл конспекта</div>
+                <div class="text-xs text-[#6E717A] mt-1">PDF, DOCX, TXT, MD или изображение</div>
+              </label>
+
+              <div id="upload-status-box" class="text-xs font-semibold text-[#6E717A]"></div>
+
+              <div class="flex justify-end">
+                <button type="button" onclick="App.closeModal()" class="btn-soft">Закрыть</button>
+              </div>
+            </div>
+          `);
+        },
+
+        async handleLessonFileSelected(input) {
+          const file = input.files && input.files[0];
+          if (!file) return;
+          const targetLessonId = document.getElementById('upload-target-lesson').value;
+          const statusBox = document.getElementById('upload-status-box');
+          if (statusBox) statusBox.textContent = `Читаем и разбираем файл «${file.name}»...`;
+
+          const ext = file.name.split('.').pop().toLowerCase();
+          const payload = { fileName: file.name, text: '', imageBase64: null, imageMime: null };
+
+          try {
+            if (file.type.startsWith('image/')) {
+              const dataUrl = await new Promise((res, rej) => {
+                const r = new FileReader();
+                r.onload = () => res(r.result);
+                r.onerror = rej;
+                r.readAsDataURL(file);
+              });
+              payload.imageMime = file.type;
+              payload.imageBase64 = String(dataUrl).split(',')[1];
+            } else if (ext === 'docx') {
+              const buf = await file.arrayBuffer();
+              payload.text = await extractTextFromDocx(buf);
+            } else if (ext === 'pdf') {
+              const buf = await file.arrayBuffer();
+              payload.text = await extractTextFromPdf(buf);
+            } else {
+              payload.text = await file.text();
+            }
+
+            const parsed = await parseLessonWithGeminiOrFallback(payload);
+            ui.importPreview = {
+              fileName: file.name,
+              targetLessonId,
+              source: parsed.source,
+              words: parsed.words,
+              phrases: parsed.phrases,
+              cheatsheets: parsed.cheatsheets
+            };
+            this.renderImportPreviewModal();
+          } catch (err) {
+            if (statusBox) statusBox.textContent = 'Не удалось прочитать файл. Попробуйте другой формат.';
+          }
+        },
+
+        renderImportPreviewModal() {
+          const p = ui.importPreview;
+          if (!p) return;
+          const sourceLabel = p.source === 'gemini' ? 'Разобрано через Gemini API' : 'Разобрано локальным офлайн-парсером';
+          openModal(`
+            <div class="flex items-start justify-between gap-2 mb-3">
+              <div>
+                <span class="pill px-2.5 py-0.5 text-[11px] font-bold bg-[#E5F6EE] text-[#1E7F53]">${sourceLabel}</span>
+                <h3 class="text-xl font-extrabold mt-1">Предпросмотр материалов</h3>
+                <p class="text-xs text-[#6E717A]">Отметьте нужные пункты и при необходимости отредактируйте перед сохранением.</p>
+              </div>
+            </div>
+
+            <div class="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
+              <!-- Words Preview -->
+              <div>
+                <div class="text-xs font-extrabold text-[#5B3FD9] mb-2">Words (${p.words.length})</div>
+                ${p.words.length === 0 ? '<p class="text-xs text-[#6E717A]">Слов не найдено.</p>' : p.words.map((w, i) => `
+                  <div class="p-3 rounded-2xl bg-[#FAF9F6] mb-2 grid grid-cols-12 gap-2 items-center">
+                    <input type="checkbox" ${w.checked ? 'checked' : ''} onchange="App.updatePreviewItem('words', ${i}, 'checked', this.checked)" class="col-span-1 accent-[#5B3FD9]" />
+                    <input class="input-soft !py-1.5 !px-2.5 col-span-4 text-xs" value="${escapeHtml(w.word)}" onchange="App.updatePreviewItem('words', ${i}, 'word', this.value)" placeholder="Слово" />
+                    <input class="input-soft !py-1.5 !px-2.5 col-span-4 text-xs" value="${escapeHtml(w.translation)}" onchange="App.updatePreviewItem('words', ${i}, 'translation', this.value)" placeholder="Перевод" />
+                    <select class="input-soft !py-1.5 !px-2 col-span-3 text-xs" onchange="App.updatePreviewItem('words', ${i}, 'group', this.value)">
+                      ${WORD_GROUPS.map(g => `<option value="${g}" ${w.group === g ? 'selected' : ''}>${g}</option>`).join('')}
+                    </select>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Phrases Preview -->
+              <div>
+                <div class="text-xs font-extrabold text-[#1E7F53] mb-2">Collocations & Phrases (${p.phrases.length})</div>
+                ${p.phrases.length === 0 ? '<p class="text-xs text-[#6E717A]">Фраз не найдено.</p>' : p.phrases.map((ph, i) => `
+                  <div class="p-3 rounded-2xl bg-[#FAF9F6] mb-2 grid grid-cols-12 gap-2 items-center">
+                    <input type="checkbox" ${ph.checked ? 'checked' : ''} onchange="App.updatePreviewItem('phrases', ${i}, 'checked', this.checked)" class="col-span-1 accent-[#1E7F53]" />
+                    <input class="input-soft !py-1.5 !px-2.5 col-span-5 text-xs" value="${escapeHtml(ph.phrase)}" onchange="App.updatePreviewItem('phrases', ${i}, 'phrase', this.value)" placeholder="Фраза" />
+                    <input class="input-soft !py-1.5 !px-2.5 col-span-6 text-xs" value="${escapeHtml(ph.translation)}" onchange="App.updatePreviewItem('phrases', ${i}, 'translation', this.value)" placeholder="Перевод" />
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Cheatsheets Preview -->
+              <div>
+                <div class="text-xs font-extrabold text-[#A56F08] mb-2">Cheatsheet (${p.cheatsheets.length})</div>
+                ${p.cheatsheets.length === 0 ? '<p class="text-xs text-[#6E717A]">Заметок не найдено.</p>' : p.cheatsheets.map((c, i) => `
+                  <div class="p-3 rounded-2xl bg-[#FAF9F6] mb-2 space-y-2">
+                    <div class="flex items-center gap-2">
+                      <input type="checkbox" ${c.checked ? 'checked' : ''} onchange="App.updatePreviewItem('cheatsheets', ${i}, 'checked', this.checked)" class="accent-[#A56F08]" />
+                      <input class="input-soft !py-1.5 !px-2.5 text-xs font-bold" value="${escapeHtml(c.title)}" onchange="App.updatePreviewItem('cheatsheets', ${i}, 'title', this.value)" />
+                    </div>
+                    <textarea class="input-soft text-xs" rows="3" onchange="App.updatePreviewItem('cheatsheets', ${i}, 'content', this.value)">${escapeHtml(c.content)}</textarea>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-4 mt-2 border-t border-black/[0.05]">
+              <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+              <button type="button" onclick="App.confirmImportPreview()" class="btn-primary">Сохранить выбранное</button>
+            </div>
+          `);
+        },
+
+        updatePreviewItem(col, idx, field, val) {
+          if (ui.importPreview && ui.importPreview[col] && ui.importPreview[col][idx]) {
+            ui.importPreview[col][idx][field] = val;
+          }
+        },
+
+        confirmImportPreview() {
+          const p = ui.importPreview;
+          if (!p) return;
+          let lessonId = p.targetLessonId;
+          if (lessonId === 'new') {
+            const newLesson = {
+              id: uid('lesson'),
+              title: p.fileName.replace(/\.[^.]+$/, ''),
+              description: `Импортировано из файла ${p.fileName}`,
+              createdAt: getDateKey()
+            };
+            state.lessons.push(newLesson);
+            lessonId = newLesson.id;
+          }
+
+          let added = 0;
+          p.words.filter(w => w.checked && w.word.trim()).forEach(w => {
+            state.words.unshift({ id: uid('w'), word: w.word.trim(), translation: w.translation.trim(), group: w.group || 'Nouns', example: w.example || '', status: 'Новое', lessonIds: [lessonId] });
+            added++;
+          });
+          p.phrases.filter(x => x.checked && x.phrase.trim()).forEach(x => {
+            state.phrases.unshift({ id: uid('p'), phrase: x.phrase.trim(), translation: x.translation.trim(), example: x.example || '', status: 'Изучаю', lessonIds: [lessonId] });
+            added++;
+          });
+          p.cheatsheets.filter(c => c.checked && c.title.trim()).forEach(c => {
+            state.cheatsheets.unshift({ id: uid('cs'), title: c.title.trim(), category: c.category || 'Конспект', tags: ['урок'], content: c.content || '', lessonIds: [lessonId] });
+            added++;
+          });
+
+          ui.importPreview = null;
+          saveState();
+          closeModal();
+          ui.selectedLessonId = lessonId;
+          renderMain();
+          showToast(`Сохранено записей: ${added}`, 'success');
+        },
+
+        // --- Words CRUD & Filters ---
+        setWordFilter(key, val) {
+          ui.wordsFilter[key] = val;
+          renderMain();
+        },
+
+        openWordModal(wordId) {
+          const w = wordId ? state.words.find(x => x.id === wordId) : null;
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-4">${w ? 'Редактировать слово' : 'Новое слово'}</h3>
+            <form onsubmit="event.preventDefault(); App.saveWord('${w ? w.id : ''}')" class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Слово (EN)</label>
+                  <input id="f-word-en" class="input-soft" required value="${escapeHtml(w ? w.word : '')}" placeholder="например, resilient" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Перевод (RU)</label>
+                  <input id="f-word-ru" class="input-soft" required value="${escapeHtml(w ? w.translation : '')}" placeholder="устойчивый" />
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Группа</label>
+                  <select id="f-word-group" class="input-soft">
+                    ${WORD_GROUPS.map(g => `<option value="${g}" ${(w ? w.group : 'Nouns') === g ? 'selected' : ''}>${g}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Статус</label>
+                  <select id="f-word-status" class="input-soft">
+                    ${['Новое', 'Изучаю', 'Знаю'].map(st => `<option value="${st}" ${(w ? w.status : 'Изучаю') === st ? 'selected' : ''}>${st}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Пример в предложении</label>
+                <input id="f-word-ex" class="input-soft" value="${escapeHtml(w ? w.example : '')}" placeholder="Optional sentence example..." />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Привязка к урокам (опционально — оставьте пустым для ручных слов)</label>
+                ${renderLessonCheckboxes(w ? w.lessonIds : [])}
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+                <button type="submit" class="btn-primary">Сохранить</button>
+              </div>
+            </form>
+          `);
+        },
+
+        saveWord(wordId) {
+          const word = document.getElementById('f-word-en').value.trim();
+          const translation = document.getElementById('f-word-ru').value.trim();
+          const group = document.getElementById('f-word-group').value;
+          const status = document.getElementById('f-word-status').value;
+          const example = document.getElementById('f-word-ex').value.trim();
+          const lessonIds = Array.from(document.querySelectorAll('input[name="lessonIds"]:checked')).map(i => i.value);
+          if (!word || !translation) return;
+
+          if (wordId) {
+            const w = state.words.find(x => x.id === wordId);
+            if (w) Object.assign(w, { word, translation, group, status, example, lessonIds });
+          } else {
+            state.words.unshift({ id: uid('w'), word, translation, group, status, example, lessonIds });
+          }
+          saveState();
+          closeModal();
+          renderMain();
+          showToast('Слово сохранено', 'success');
+        },
+
+        deleteWord(id) {
+          state.words = state.words.filter(w => w.id !== id);
+          saveState();
+          renderMain();
+        },
+
+        cycleWordStatus(id) {
+          const w = state.words.find(x => x.id === id);
+          if (!w) return;
+          const order = ['Новое', 'Изучаю', 'Знаю'];
+          w.status = order[(order.indexOf(w.status) + 1) % order.length];
+          saveState();
+          renderMain();
+        },
+
+        startWordsPractice(mode) {
+          const list = getFilteredWords();
+          if (list.length === 0) { showToast('Нет слов для тренировки', 'error'); return; }
+          let items = [];
+          if (mode === 'flashcards') {
+            items = shuffle(list).map(w => ({ kind: 'flashcard', section: 'Words', itemId: w.id, badge: `Words · ${w.group}`, front: w.word, back: w.translation, example: w.example, speak: w.word }));
+          } else {
+            const dir = mode === 'quiz-ru-en' ? 'ru-en' : 'en-ru';
+            items = shuffle(list).map(w => makeWordQuizItem(w, dir));
+          }
+          ui.session = { sourceTab: 'words', title: mode === 'flashcards' ? 'Words · Флеш-карточки' : 'Words · Квиз', items, index: 0, flipped: false, answered: false, score: 0, mistakesList: [] };
+          renderMain();
+        },
+
+        // --- Phrases CRUD & Practice ---
+        setPhraseFilter(key, val) {
+          ui.phrasesFilter[key] = val;
+          renderMain();
+        },
+
+        openPhraseModal(id) {
+          const p = id ? state.phrases.find(x => x.id === id) : null;
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-4">${p ? 'Редактировать фразу' : 'Новая фраза'}</h3>
+            <form onsubmit="event.preventDefault(); App.savePhrase('${p ? p.id : ''}')" class="space-y-3">
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Выражение (EN)</label>
+                <input id="f-ph-en" class="input-soft" required value="${escapeHtml(p ? p.phrase : '')}" placeholder="например, keep track of" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Перевод (RU)</label>
+                <input id="f-ph-ru" class="input-soft" required value="${escapeHtml(p ? p.translation : '')}" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Контекстный пример</label>
+                <input id="f-ph-ex" class="input-soft" value="${escapeHtml(p ? p.example : '')}" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Статус</label>
+                <select id="f-ph-st" class="input-soft">
+                  <option value="Изучаю" ${(p ? p.status : 'Изучаю') === 'Изучаю' ? 'selected' : ''}>Изучаю</option>
+                  <option value="Знаю" ${(p && p.status === 'Знаю') ? 'selected' : ''}>Знаю</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Привязка к урокам</label>
+                ${renderLessonCheckboxes(p ? p.lessonIds : [])}
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+                <button type="submit" class="btn-primary">Сохранить</button>
+              </div>
+            </form>
+          `);
+        },
+
+        savePhrase(id) {
+          const phrase = document.getElementById('f-ph-en').value.trim();
+          const translation = document.getElementById('f-ph-ru').value.trim();
+          const example = document.getElementById('f-ph-ex').value.trim();
+          const status = document.getElementById('f-ph-st').value;
+          const lessonIds = Array.from(document.querySelectorAll('input[name="lessonIds"]:checked')).map(i => i.value);
+          if (!phrase || !translation) return;
+          if (id) {
+            const p = state.phrases.find(x => x.id === id);
+            if (p) Object.assign(p, { phrase, translation, example, status, lessonIds });
+          } else {
+            state.phrases.unshift({ id: uid('p'), phrase, translation, example, status, lessonIds });
+          }
+          saveState();
+          closeModal();
+          renderMain();
+          showToast('Фраза сохранена', 'success');
+        },
+
+        deletePhrase(id) {
+          state.phrases = state.phrases.filter(p => p.id !== id);
+          saveState();
+          renderMain();
+        },
+
+        togglePhraseStatus(id) {
+          const p = state.phrases.find(x => x.id === id);
+          if (!p) return;
+          p.status = p.status === 'Знаю' ? 'Изучаю' : 'Знаю';
+          saveState();
+          renderMain();
+        },
+
+        startPhrasesPractice(mode) {
+          const list = getFilteredPhrases();
+          if (list.length === 0) { showToast('Нет фраз для тренировки', 'error'); return; }
+          const items = mode === 'flashcards'
+            ? shuffle(list).map(p => ({ kind: 'flashcard', section: 'Phrases', itemId: p.id, badge: 'Phrases', front: p.phrase, back: p.translation, example: p.example, speak: p.phrase }))
+            : shuffle(list).map(p => makePhraseBlankItem(p));
+          ui.session = { sourceTab: 'phrases', title: mode === 'flashcards' ? 'Phrases · Флеш-карточки' : 'Phrases · Заполни пропуск', items, index: 0, flipped: false, answered: false, score: 0, mistakesList: [] };
+          renderMain();
+        },
+
+        // --- Bulk Import (Text / JSON / CSV) ---
+        openBulkImportModal(targetType) {
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-1">Массовый импорт (${targetType === 'words' ? 'Words' : 'Phrases'})</h3>
+            <p class="text-xs text-[#6E717A] mb-4">Вставьте список строками в формате <strong>слово — перевод — пример</strong> или загрузите JSON / CSV.</p>
+            <form onsubmit="event.preventDefault(); App.runBulkImport('${targetType}')" class="space-y-3">
+              ${targetType === 'words' ? `
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Группа по умолчанию</label>
+                  <select id="bulk-group" class="input-soft">
+                    ${WORD_GROUPS.map(g => `<option value="${g}">${g}</option>`).join('')}
+                  </select>
+                </div>
+              ` : ''}
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Привязать к уроку (опционально)</label>
+                ${renderLessonCheckboxes([])}
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Текст или CSV / JSON</label>
+                <textarea id="bulk-text" class="input-soft" rows="6" placeholder="take off — взлетать — The plane took off on time.&#10;reliable — надёжный — He is a reliable colleague."></textarea>
+              </div>
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <label class="btn-soft text-xs cursor-pointer">
+                  📁 Загрузить JSON/CSV
+                  <input type="file" accept=".json,.csv,.txt" class="hidden" onchange="App.loadBulkFileIntoTextarea(this)" />
+                </label>
+                <div class="flex gap-2">
+                  <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+                  <button type="submit" class="btn-primary">Импортировать</button>
+                </div>
+              </div>
+            </form>
+          `);
+        },
+
+        async loadBulkFileIntoTextarea(input) {
+          const f = input.files && input.files[0];
+          if (!f) return;
+          const txt = await f.text();
+          const ta = document.getElementById('bulk-text');
+          if (ta) ta.value = txt;
+        },
+
+        runBulkImport(targetType) {
+          const raw = (document.getElementById('bulk-text').value || '').trim();
+          if (!raw) return;
+          const lessonIds = Array.from(document.querySelectorAll('input[name="lessonIds"]:checked')).map(i => i.value);
+          const defGroup = document.getElementById('bulk-group') ? document.getElementById('bulk-group').value : 'Nouns';
+          let count = 0;
+
+          if (raw.startsWith('[') || raw.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(raw);
+              const arr = Array.isArray(parsed) ? parsed : (parsed.words || parsed.phrases || []);
+              arr.forEach(row => {
+                if (targetType === 'words' && (row.word || row.en)) {
+                  state.words.unshift({ id: uid('w'), word: row.word || row.en, translation: row.translation || row.ru || '', group: WORD_GROUPS.includes(row.group) ? row.group : defGroup, example: row.example || '', status: 'Новое', lessonIds });
+                  count++;
+                } else if (targetType === 'phrases' && (row.phrase || row.en)) {
+                  state.phrases.unshift({ id: uid('p'), phrase: row.phrase || row.en, translation: row.translation || row.ru || '', example: row.example || '', status: 'Изучаю', lessonIds });
+                  count++;
+                }
+              });
+            } catch (_) {}
+          } else {
+            const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            lines.forEach(line => {
+              const parts = line.split(/\s*(?:—|–|\||;|\t| - )\s*/);
+              if (parts.length < 2) {
+                const csv = line.split(',').map(s => s.trim());
+                if (csv.length >= 2) parts.splice(0, parts.length, ...csv);
+              }
+              if (parts.length >= 2) {
+                if (targetType === 'words') {
+                  state.words.unshift({ id: uid('w'), word: parts[0], translation: parts[1], group: defGroup, example: parts[2] || '', status: 'Новое', lessonIds });
+                } else {
+                  state.phrases.unshift({ id: uid('p'), phrase: parts[0], translation: parts[1], example: parts[2] || '', status: 'Изучаю', lessonIds });
+                }
+                count++;
+              }
+            });
+          }
+
+          saveState();
+          closeModal();
+          renderMain();
+          showToast(`Импортировано записей: ${count}`, count > 0 ? 'success' : 'error');
+        },
+
+        // --- Tenses CRUD & Practice ---
+        setTenseFilter(val) {
+          ui.tensesFilter.lesson = val;
+          renderMain();
+        },
+
+        openTenseModal(id) {
+          const t = id ? state.tenses.find(x => x.id === id) : null;
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-4">${t ? 'Редактировать время' : 'Новое время'}</h3>
+            <form onsubmit="event.preventDefault(); App.saveTense('${t ? t.id : ''}')" class="space-y-3">
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Название времени</label>
+                <input id="f-t-name" class="input-soft" required value="${escapeHtml(t ? t.name : '')}" placeholder="Past Continuous" />
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input id="f-t-pos" class="input-soft text-xs" placeholder="+ Формула" value="${escapeHtml(t ? t.formulaPos : '')}" />
+                <input id="f-t-neg" class="input-soft text-xs" placeholder="− Формула" value="${escapeHtml(t ? t.formulaNeg : '')}" />
+                <input id="f-t-q" class="input-soft text-xs" placeholder="? Формула" value="${escapeHtml(t ? t.formulaQ : '')}" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Случаи употребления</label>
+                <textarea id="f-t-usage" class="input-soft" rows="2">${escapeHtml(t ? t.usage : '')}</textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Слова-маркеры</label>
+                <input id="f-t-markers" class="input-soft" value="${escapeHtml(t ? t.markers : '')}" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Примеры (по одному на строку)</label>
+                <textarea id="f-t-examples" class="input-soft" rows="2">${escapeHtml(t ? t.examples : '')}</textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Упражнение для тренажёра (необязательно: Предложение | Ответ)</label>
+                <input id="f-t-newex" class="input-soft text-xs" placeholder="I ___ (watch) TV at 8 p.m. | was watching" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Привязка к урокам</label>
+                ${renderLessonCheckboxes(t ? t.lessonIds : [])}
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+                <button type="submit" class="btn-primary">Сохранить</button>
+              </div>
+            </form>
+          `);
+        },
+
+        saveTense(id) {
+          const name = document.getElementById('f-t-name').value.trim();
+          if (!name) return;
+          const payload = {
+            name,
+            formulaPos: document.getElementById('f-t-pos').value.trim(),
+            formulaNeg: document.getElementById('f-t-neg').value.trim(),
+            formulaQ: document.getElementById('f-t-q').value.trim(),
+            usage: document.getElementById('f-t-usage').value.trim(),
+            markers: document.getElementById('f-t-markers').value.trim(),
+            examples: document.getElementById('f-t-examples').value.trim(),
+            lessonIds: Array.from(document.querySelectorAll('input[name="lessonIds"]:checked')).map(i => i.value)
+          };
+          const newExRaw = document.getElementById('f-t-newex').value.trim();
+          let extraEx = null;
+          if (newExRaw.includes('|')) {
+            const [pr, ans] = newExRaw.split('|').map(s => s.trim());
+            if (pr && ans) extraEx = { id: uid('te'), prompt: pr, answer: ans, accept: [ans], hint: payload.usage };
+          }
+          if (id) {
+            const t = state.tenses.find(x => x.id === id);
+            if (t) {
+              Object.assign(t, payload);
+              if (extraEx) { t.exercises = t.exercises || []; t.exercises.push(extraEx); }
+            }
+          } else {
+            state.tenses.push(Object.assign({ id: uid('t'), status: 'Изучаю', correctCount: 0, totalCount: 0, exercises: extraEx ? [extraEx] : [] }, payload));
+          }
+          saveState();
+          closeModal();
+          renderMain();
+          showToast('Время сохранено', 'success');
+        },
+
+        deleteTense(id) {
+          state.tenses = state.tenses.filter(t => t.id !== id);
+          saveState();
+          renderMain();
+        },
+
+        toggleTenseStatus(id) {
+          const t = state.tenses.find(x => x.id === id);
+          if (!t) return;
+          t.status = t.status === 'Знаю' ? 'Изучаю' : 'Знаю';
+          saveState();
+          renderMain();
+        },
+
+        startTensesPractice(tenseId, mode) {
+          const pool = tenseId ? state.tenses.filter(t => t.id === tenseId) : state.tenses;
+          const items = [];
+          pool.forEach(t => (t.exercises || []).forEach(ex => items.push(makeTenseItem(t, ex, mode))));
+          if (items.length === 0) { showToast('Добавьте упражнения для этого времени', 'error'); return; }
+          ui.session = { sourceTab: 'tenses', title: 'Tenses · Тренажёр', items: shuffle(items), index: 0, flipped: false, answered: false, score: 0, mistakesList: [] };
+          renderMain();
+        },
+
+        // --- Cheatsheet CRUD ---
+        setCheatsheetFilter(key, val) {
+          ui.cheatsheetFilter[key] = val;
+          renderMain();
+        },
+
+        openCheatsheetModal(id) {
+          const c = id ? state.cheatsheets.find(x => x.id === id) : null;
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-4">${c ? 'Редактировать шпаргалку' : 'Новая шпаргалка'}</h3>
+            <form onsubmit="event.preventDefault(); App.saveCheatsheet('${c ? c.id : ''}')" class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Заголовок</label>
+                  <input id="f-cs-title" class="input-soft" required value="${escapeHtml(c ? c.title : '')}" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-[#6E717A] mb-1">Категория</label>
+                  <input id="f-cs-cat" class="input-soft" value="${escapeHtml(c ? c.category : 'Грамматика')}" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Теги (через запятую)</label>
+                <input id="f-cs-tags" class="input-soft" value="${escapeHtml(c ? (c.tags || []).join(', ') : '')}" placeholder="база, артикли" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Текст (поддерживает ## Заголовок, - список, **жирный**)</label>
+                <textarea id="f-cs-content" class="input-soft" rows="6" required>${escapeHtml(c ? c.content : '')}</textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Привязка к урокам</label>
+                ${renderLessonCheckboxes(c ? c.lessonIds : [])}
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="App.closeModal()" class="btn-soft">Отмена</button>
+                <button type="submit" class="btn-primary">Сохранить</button>
+              </div>
+            </form>
+          `);
+        },
+
+        saveCheatsheet(id) {
+          const title = document.getElementById('f-cs-title').value.trim();
+          const category = document.getElementById('f-cs-cat').value.trim() || 'Общее';
+          const tags = document.getElementById('f-cs-tags').value.split(',').map(s => s.trim()).filter(Boolean);
+          const content = document.getElementById('f-cs-content').value.trim();
+          const lessonIds = Array.from(document.querySelectorAll('input[name="lessonIds"]:checked')).map(i => i.value);
+          if (!title || !content) return;
+          if (id) {
+            const c = state.cheatsheets.find(x => x.id === id);
+            if (c) Object.assign(c, { title, category, tags, content, lessonIds });
+          } else {
+            state.cheatsheets.unshift({ id: uid('cs'), title, category, tags, content, lessonIds });
+          }
+          saveState();
+          closeModal();
+          renderMain();
+          showToast('Шпаргалка сохранена', 'success');
+        },
+
+        deleteCheatsheet(id) {
+          state.cheatsheets = state.cheatsheets.filter(c => c.id !== id);
+          saveState();
+          renderMain();
+        },
+
+        // --- Tests ---
+        setTestConfig(key, val) {
+          if (key === 'scope') ui.testScope = val;
+          if (key === 'length') ui.testLength = Number(val) || 15;
+        },
+
+        launchTestForLesson(lessonId) {
+          ui.testScope = lessonId;
+          ui.activeTab = 'tests';
+          this.startControlTest();
+        },
+
+        startControlTest() {
+          const scope = ui.testScope;
+          const lesson = scope !== 'all' ? state.lessons.find(l => l.id === scope) : null;
+          const filterByScope = arr => scope === 'all' ? arr : arr.filter(x => (x.lessonIds || []).includes(scope));
+
+          // Priority to "Изучаю" and "Новое"
+          const sortPriority = arr => arr.slice().sort((a, b) => {
+            const score = s => s === 'Изучаю' ? 0 : s === 'Новое' ? 1 : 2;
+            return score(a.status) - score(b.status);
+          });
+
+          const words = sortPriority(filterByScope(state.words));
+          const phrases = sortPriority(filterByScope(state.phrases));
+          const tenses = sortPriority(filterByScope(state.tenses));
+
+          const pool = [];
+          words.forEach((w, i) => pool.push(makeWordQuizItem(w, i % 2 === 0 ? 'en-ru' : 'ru-en')));
+          phrases.forEach(p => pool.push(makePhraseBlankItem(p)));
+          tenses.forEach(t => (t.exercises || []).forEach(ex => pool.push(makeTenseItem(t, ex, 'choice'))));
+
+          const items = pool.slice(0, ui.testLength);
+          if (items.length === 0) {
+            showToast('Недостаточно материалов для запуска теста', 'error');
+            return;
+          }
+          ui.session = {
+            sourceTab: 'tests',
+            isControlTest: true,
+            scopeLabel: lesson ? lesson.title : 'Все материалы',
+            title: `Контрольный тест (${lesson ? lesson.title : 'Все материалы'})`,
+            items: shuffle(items),
+            index: 0,
+            flipped: false,
+            answered: false,
+            score: 0,
+            mistakesList: []
+          };
+          renderMain();
+        },
+
+        // --- Mistakes ---
+        startMistakesPractice() {
+          if (state.mistakes.length === 0) return;
+          const items = state.mistakes.map(m => makeMistakeItem(m));
+          ui.session = { sourceTab: 'mistakes', title: 'Проработка ошибок', items, index: 0, flipped: false, answered: false, score: 0, mistakesList: [] };
+          renderMain();
+        },
+
+        removeMistakeManually(id) {
+          state.mistakes = state.mistakes.filter(m => m.id !== id);
+          saveState();
+          renderMain();
+        },
+
+        // --- Session Interactions ---
+        flipCard() {
+          if (!ui.session) return;
+          ui.session.flipped = !ui.session.flipped;
+          renderMain();
+        },
+
+        answerFlashcard(known) {
+          const s = ui.session;
+          if (!s) return;
+          const item = s.items[s.index];
+          if (known) {
+            s.score += 1;
+            if (item.section === 'Words') {
+              const w = state.words.find(x => x.id === item.itemId);
+              if (w) w.status = 'Знаю';
+            } else if (item.section === 'Phrases') {
+              const p = state.phrases.find(x => x.id === item.itemId);
+              if (p) p.status = 'Знаю';
+            }
+            recordAnswer(true, null);
+          } else {
+            if (item.section === 'Words') {
+              const w = state.words.find(x => x.id === item.itemId);
+              if (w) w.status = 'Изучаю';
+            }
+            const mPayload = { section: item.section, itemId: item.itemId, prompt: item.front, expected: item.back, hint: item.example };
+            s.mistakesList.push(mPayload);
+            recordAnswer(false, mPayload);
+          }
+          this.nextSessionItem();
+        },
+
+        submitChoiceAnswer(optIdx) {
+          const s = ui.session;
+          if (!s || s.answered) return;
+          const item = s.items[s.index];
+          const chosen = item.options[optIdx];
+          const isCorrect = chosen === item.answer;
+          s.answered = true;
+          s.selectedOption = chosen;
+          s.lastCorrect = isCorrect;
+          this.processGradedAnswer(item, isCorrect);
+          renderMain();
+        },
+
+        submitInputAnswer() {
+          const s = ui.session;
+          if (!s || s.answered) return;
+          const item = s.items[s.index];
+          const inp = document.getElementById('session-text-input');
+          const val = (inp ? inp.value : '').trim();
+          if (!val) return;
+          const norm = val.toLowerCase().replace(/\s+/g, ' ');
+          const accepted = (item.accept || [item.answer]).map(a => String(a).toLowerCase().replace(/\s+/g, ' '));
+          const isCorrect = accepted.includes(norm);
+          s.answered = true;
+          s.inputValue = val;
+          s.lastCorrect = isCorrect;
+          this.processGradedAnswer(item, isCorrect);
+          renderMain();
+        },
+
+        processGradedAnswer(item, isCorrect) {
+          const s = ui.session;
+          if (isCorrect) s.score += 1;
+
+          // Update tense mastery counters
+          if (item.section === 'Tenses') {
+            const t = state.tenses.find(x => x.id === item.itemId);
+            if (t) {
+              t.totalCount = (t.totalCount || 0) + 1;
+              if (isCorrect) t.correctCount = (t.correctCount || 0) + 1;
+              if (t.totalCount >= 3 && (t.correctCount / t.totalCount) >= 0.8) t.status = 'Знаю';
+            }
+          }
+
+          if (item.mistakeId) {
+            const res = handleMistakePracticeResult(item.mistakeId, isCorrect);
+            if (res.removed) showToast('Карточка убрана из Mistakes (2/2)!', 'success');
+          } else {
+            const mPayload = isCorrect ? null : { section: item.section, itemId: item.itemId, exerciseId: item.exerciseId, prompt: item.prompt, expected: item.answer, hint: item.hint };
+            if (mPayload) s.mistakesList.push(mPayload);
+            recordAnswer(isCorrect, mPayload);
+          }
+        },
+
+        nextSessionItem() {
+          const s = ui.session;
+          if (!s) return;
+          s.index += 1;
+          s.flipped = false;
+          s.answered = false;
+          s.inputValue = '';
+          s.selectedOption = null;
+
+          // On completion of full Today block or Control Test
+          if (s.index >= s.items.length) {
+            if (s.isTodayFull) {
+              markTodayCompleted();
+              showToast('Блок Today выполнен! День засчитан!', 'success');
+            }
+            if (s.isControlTest) {
+              const total = s.items.length || 1;
+              const pct = Math.round((s.score / total) * 100);
+              state.testsHistory.unshift({
+                id: uid('test'),
+                date: getDateKey(),
+                scopeLabel: s.scopeLabel,
+                score: s.score,
+                total,
+                percent: pct,
+                mistakesCount: s.mistakesList.length
+              });
+              saveState();
+            }
+          }
+          renderMain();
+        },
+
+        exitSession() {
+          ui.session = null;
+          renderMain();
+        },
+
+        // --- Report Copy ---
+        copyReport() {
+          const text = buildTeacherReportText();
+          copyToClipboard(text).then(() => {
+            const btn = document.getElementById('copy-report-btn');
+            if (btn) {
+              btn.textContent = '✓ Скопировано!';
+              setTimeout(() => { btn.textContent = '📋 Скопировать отчёт'; }, 2000);
+            }
+            showToast('Отчёт скопирован!', 'success');
+          });
+        },
+
+        // --- Auth & Firebase / Gemini Settings Modals ---
+        openAccountModal() {
+          const fbReady = !!(ui.fbAuth && ui.fbDb);
+          openModal(`
+            <h3 class="text-xl font-extrabold mb-1">Аккаунт и Firebase Auth</h3>
+            <p class="text-xs text-[#6E717A] mb-4">
+              ${fbReady
+                ? 'Firebase подключён! Войдите через Google или Email/Пароль для облачной синхронизации между всеми устройствами.'
+                : 'Сначала вставьте Firebase Config ниже и нажмите «Подключить Firebase», чтобы активировать вход и синхронизацию.'}
+            </p>
+
+            ${state.user.signedIn ? `
+              <div class="p-4 rounded-2xl bg-[#E5F6EE] mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <div class="font-extrabold text-sm">${escapeHtml(state.user.name)}</div>
+                  <div class="text-xs text-[#1E7F53]">${escapeHtml(state.user.email || '')} · ${state.user.provider === 'firebase' ? 'Firebase Cloud' : 'Локальный режим'}</div>
+                </div>
+                <button type="button" onclick="App.signOut()" class="btn-soft !bg-white text-xs">Выйти</button>
+              </div>
+            ` : `
+              <div class="space-y-3 mb-5">
+                <button type="button" onclick="App.signInWithGoogle()" class="btn-soft w-full !py-3 !bg-[#FAF9F6] border border-black/10 font-bold">
+                  🔵 Войти через Google ${fbReady ? '(Firebase)' : '(нужен Firebase Config)'}
+                </button>
+                <form onsubmit="event.preventDefault(); App.signInWithEmail()" class="space-y-2.5 pt-2 border-t border-black/[0.06]">
+                  <input id="auth-email" type="email" required class="input-soft" placeholder="Email" />
+                  <input id="auth-pass" type="password" required minlength="6" class="input-soft" placeholder="Пароль (минимум 6 символов)" />
+                  <div class="grid grid-cols-2 gap-2">
+                    <button type="submit" class="btn-primary w-full !py-2.5 text-xs">Войти по Email</button>
+                    <button type="button" onclick="App.registerWithEmail()" class="btn-soft w-full !py-2.5 text-xs">Регистрация</button>
+                  </div>
+                </form>
+              </div>
+            `}
+
+            <div class="pt-4 border-t border-black/[0.06] space-y-3">
+              <div class="font-extrabold text-sm">Настройки Firebase и Gemini API</div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Firebase Config (JSON или объект const firebaseConfig = { ... })</label>
+                <textarea id="cfg-firebase-json" class="input-soft text-xs font-mono" rows="4" placeholder='{"apiKey":"...","authDomain":"...","projectId":"..."}'>${escapeHtml(config.firebaseConfigText || '')}</textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#6E717A] mb-1">Gemini API Key (опционально, для авторазбора конспектов)</label>
+                <input id="cfg-gemini-key" type="password" class="input-soft text-xs" value="${escapeHtml(config.geminiApiKey || '')}" placeholder="AIza..." />
+              </div>
+              <div class="flex justify-between items-center gap-2 flex-wrap pt-1">
+                <div class="flex gap-2">
+                  <button type="button" onclick="App.exportBackupJson()" class="btn-soft text-xs">💾 Бэкап JSON</button>
+                  <button type="button" onclick="App.resetAllData()" class="btn-soft !bg-[#FDECEB] !text-[#C84444] text-xs">🗑️ Очистить</button>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" onclick="App.closeModal()" class="btn-soft">Закрыть</button>
+                  <button type="button" onclick="App.saveIntegrationsConfig()" class="btn-primary">Подключить / Сохранить</button>
+                </div>
+              </div>
+            </div>
+          `);
+        },
+
+        async signInWithGoogle() {
+          if (!ui.fbAuth) {
+            showToast('Сначала вставьте Firebase Config и нажмите «Подключить / Сохранить»', 'error');
+            return;
+          }
+          try {
+            const provider = new window.firebase.auth.GoogleAuthProvider();
+            await ui.fbAuth.signInWithPopup(provider);
+            closeModal();
+          } catch (err) {
+            if (err && (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment')) {
+              try {
+                const provider = new window.firebase.auth.GoogleAuthProvider();
+                await ui.fbAuth.signInWithRedirect(provider);
+              } catch (e2) {
+                showToast('Ошибка входа Google: ' + (e2.message || e2.code), 'error');
+              }
+            } else {
+              showToast('Ошибка входа Google: ' + (err.message || err.code), 'error');
+            }
+          }
+        },
+
+        async signInWithEmail() {
+          const email = (document.getElementById('auth-email').value || '').trim();
+          const pass = (document.getElementById('auth-pass').value || '').trim();
+          if (!email || !pass) return;
+          if (!ui.fbAuth) {
+            showToast('Сначала подключите Firebase Config ниже', 'error');
+            return;
+          }
+          try {
+            await ui.fbAuth.signInWithEmailAndPassword(email, pass);
+            closeModal();
+          } catch (err) {
+            showToast('Ошибка входа: ' + (err.message || err.code), 'error');
+          }
+        },
+
+        async registerWithEmail() {
+          const email = (document.getElementById('auth-email').value || '').trim();
+          const pass = (document.getElementById('auth-pass').value || '').trim();
+          if (!email || pass.length < 6) {
+            showToast('Введите Email и пароль от 6 символов', 'error');
+            return;
+          }
+          if (!ui.fbAuth) {
+            showToast('Сначала подключите Firebase Config ниже', 'error');
+            return;
+          }
+          try {
+            await ui.fbAuth.createUserWithEmailAndPassword(email, pass);
+            closeModal();
+            showToast('Аккаунт создан!', 'success');
+          } catch (err) {
+            showToast('Ошибка регистрации: ' + (err.message || err.code), 'error');
+          }
+        },
+
+        async signOut() {
+          try {
+            if (ui.fbAuth && ui.fbAuth.currentUser) {
+              await ui.fbAuth.signOut();
+            }
+          } catch (_) {}
+          state.user = { signedIn: false, uid: '', name: 'Гость', email: '', provider: 'local' };
+          ui.syncState = ui.fbAuth ? 'ready' : 'local';
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+          closeModal();
+          renderMain();
+          showToast('Вы вышли из аккаунта');
+        },
+
+        saveIntegrationsConfig() {
+          config.geminiApiKey = (document.getElementById('cfg-gemini-key').value || '').trim();
+          config.firebaseConfigText = (document.getElementById('cfg-firebase-json').value || '').trim();
+          saveConfig();
+          const connected = initFirebaseFromConfig(false);
+          if (connected) {
+            this.openAccountModal();
+          } else {
+            closeModal();
+            showToast('Настройки сохранены (локальный режим)', 'success');
+          }
+        },
+
+        resetAllData() {
+          state = createInitialState();
+          saveState();
+          closeModal();
+          renderMain();
+          showToast('Все данные очищены');
+        },
+
+        exportBackupJson() {
+          const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `english-every-day-backup-${getDateKey()}.json`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+      };
+
+      // =========================================================================
+      // BOOTSTRAP
+      // =========================================================================
+      document.getElementById('accent-toggle-btn').addEventListener('click', () => {
+        state.settings.accent = state.settings.accent === 'en-US' ? 'en-GB' : 'en-US';
+        saveState();
+        renderMain();
+        showToast(`Акцент озвучки: ${state.settings.accent}`);
+      });
+
+      document.getElementById('sync-status-btn').addEventListener('click', () => App.openAccountModal());
+      document.getElementById('account-btn').addEventListener('click', () => App.openAccountModal());
+
+      initFirebaseFromConfig(true);
+      renderMain();
+    })();
+  </script>
+</body>
+</html>
